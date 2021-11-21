@@ -1,14 +1,21 @@
 # depslib dependency file v1.0
-1584205422 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
+1637496204 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
 	<tchar.h>
 	<windows.h>
+	"src/client/WoMicClient.h"
 
-1637491219 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
+1637502472 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
 	"WoMicClient.h"
 
-1637491257 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
+1637502379 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
+	<windows.h>
+	<winsock2.h>
+	<ws2tcpip.h>
 	<string>
 	<atomic_queue/atomic_queue.h>
+	<iostream>
+	<thread>
+	"ClientDefines.h"
 
 1635781287 d:\mif\7semestras\winapi\wo-mic-client\libs\include\atomic_queue\atomic_queue.h
 	"defs.h"
@@ -23,4 +30,6 @@
 1635781287 d:\mif\7semestras\winapi\wo-mic-client\libs\include\atomic_queue\defs.h
 	<atomic>
 	<emmintrin.h>
+
+1637501704 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\clientdefines.h
 
