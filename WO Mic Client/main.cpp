@@ -4,9 +4,9 @@
     #define UNICODE
 #endif
 
+#include "src/client/WoMicClient.h"
 #include <tchar.h>
 #include <windows.h>
-#include "src/client/WoMicClient.h"
 
 /*  Declare Windows procedure  */
 LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
@@ -46,7 +46,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
     WoMicClient* client = new WoMicClient("192.168.1.114", 8125, 34568, "", 0.1, true);
 
-    cout << "Start result" << client->start();
+    cout << "Start result \n" << client->start();
 
     /* The class is registered, let's create the program*/
     hwnd = CreateWindowEx (

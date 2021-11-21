@@ -2,18 +2,26 @@
 #define WOMICCLIENT_H
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <ws2tcpip.h>
 #include <string>
 #include <atomic_queue/atomic_queue.h>
 #include <iostream>
 #include <thread>
 #include "ClientDefines.h"
+#include <opus.h>
+#include <Audioclient.h>
+#include <mmdeviceapi.h>
+
+#include <setupapi.h>
+#include <initguid.h>
+#include <devpkey.h>
+#include <Functiondiscoverykeys_devpkey.h>
 
 using namespace std;
 
-typedef atomic_queue::AtomicQueue<int32_t, 2048, 256*256*100> AudioQueue;
+typedef atomic_queue::AtomicQueue<int32_t, 48000 * 2, 256*256*100> AudioQueue;
 
 enum ClientStatus {
     WAITING,
@@ -58,16 +66,22 @@ private:
     int connect();
     int handshake();
     int disconnect();
-    int openAudioDevice();
-    int closeAudioDevice();
     int startUDPServer();
     int stopUDPServer();
     void reconnectAsync();
     int reconnect();
 
+    int initOpusRecorder();
+    int destroyOpusRecorder();
+
     int udpListen();
     int pingLoop();
     void pingFailed();
+
+    int openAudioDevice();
+    int closeAudioDevice();
+
+    int audioDeviceLoop();
 
     ClientStatus status = WAITING;
     bool autoReconnect;
@@ -82,8 +96,14 @@ private:
     SOCKET serverSocket = INVALID_SOCKET; //UDP server socket for incoming audio data
     unique_ptr<thread> recvThread = NULL;
     unique_ptr<thread> pingThread = NULL;
+    unique_ptr<thread> audioThread = NULL;
     unique_ptr<thread> reconnectThread = NULL;
     bool wsaInitialized = false;
+
+    OpusDecoder* opusDecoder = NULL;
+    HANDLE hEvent = NULL;
+    IAudioClient *pAudioClient = NULL;
+
     const int sampleRate = 48000;
     const int channels = 1;
 };

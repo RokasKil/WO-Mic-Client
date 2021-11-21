@@ -23,7 +23,7 @@ int WoMicClient::start() {
     int result;
     if (status == WAITING || status == FAILED) {
         status = CONNECTING;
-        if ((result = openAudioDevice()) == CLIENT_E_OK && (result = connect()) == CLIENT_E_OK ) {
+        if ((result = initOpusRecorder()) == CLIENT_E_OK && (result = openAudioDevice()) == CLIENT_E_OK && (result = connect()) == CLIENT_E_OK ) {
             status = CONNECTED;
         }
         else {
@@ -34,11 +34,30 @@ int WoMicClient::start() {
     return CLIENT_E_INVALIDSTATE;
 }
 
+int WoMicClient::initOpusRecorder() {
+    if (opusDecoder == NULL) {
+        int error;
+        opusDecoder = opus_decoder_create(sampleRate, channels, &error);
+        if (error != OPUS_OK) {
+            cout << "opus_decoder_create failed with error: " << error << endl;
+            return CLIENT_E_OPUSDECODER;
+        }
+    }
+    return CLIENT_E_OK;
+}
+
+int WoMicClient::destroyOpusRecorder() {
+    if (opusDecoder != NULL) {
+        opus_decoder_destroy(opusDecoder);
+        opusDecoder = NULL;
+    }
+    return CLIENT_E_OK;
+}
+
+
 int WoMicClient::connect() {
     int result;
-    struct addrinfo *addrInfoResult = NULL,
-            *addrInfoPtr = NULL,
-            hints;
+    struct addrinfo *addrInfoResult = NULL, hints;
     if (!wsaInitialized ) {
         WSADATA wsaData;
         result = WSAStartup(MAKEWORD(2,2), &wsaData);
@@ -177,6 +196,7 @@ int WoMicClient::reconnect() {
             sleepMiliseconds = min(sleepMiliseconds * 5, 10000); // sleep for 1, 5, 10 seconds
         }
     }
+    return CLIENT_E_RECONNECTSTATE;
 }
 
 int WoMicClient::startUDPServer() {
@@ -235,9 +255,36 @@ int WoMicClient::stopUDPServer() {
 int WoMicClient::udpListen() {
     unique_ptr<char[]> buffer = std::make_unique<char[]>(1024*1024);
     int result;
+    char protocol;
+    int opusLen = 0;
+    unsigned char* opusData;
+    int frameSize = sampleRate / 1000 * 20; //Not sure how to do this properly
+    unique_ptr<short[]> outBuffer = std::make_unique<short[]>(frameSize * channels);
     cout << "recvFrom" << endl;
     while ((result = recvfrom(serverSocket, buffer.get(), 1024*1024, 0, NULL, NULL)) != SOCKET_ERROR) { //Neziurim kas atsiunte
-        cout << "got " << result << "data" << endl;
+        // {BYTE protocol should be 4} {BYTE unknown always 0} {WORD opus packet len} {WORD sequence NR} {DWORD timestamp} {BYTE volume (Paid version not gonna do this)} [BYTE * (opus packet len) opus encoded audio data]
+        protocol = buffer[0];
+        if (protocol != 4) {
+            cout << "Protocol not 4 skipping packet " << endl;
+        }
+        opusLen = ntohs(*((unsigned short *) (buffer.get() + 2)));
+        opusData = (unsigned char*) buffer.get() + 11;
+        result = opus_decode(opusDecoder, opusData, opusLen, outBuffer.get(), sampleRate / 1000 * 20, 0);
+        if (result < 0) {
+            cout << "opus_decode error " << result << endl;
+        }
+        else {
+            //cout << "decoded " << result / channels << " samples" << endl;
+            for (int i = 0; i < result && !audioQueue.was_full(); i++) {
+                if (outBuffer[i] != short(int(outBuffer[i]))) {
+                    cout << "REEE" << endl;
+                }
+                audioQueue.push(outBuffer[i]);
+            }
+            if (audioQueue.was_full()) {
+                cout << "audioQueue full "  << endl;
+            }
+        }
     }
     cout << "recvfrom failed: " << result << WSAGetLastError() << endl;
     return CLIENT_E_UDP_RECV;
@@ -288,9 +335,9 @@ int WoMicClient::handshake() {
         len = 0;
         packetLen = ntohl(*((unsigned int*) (buffer + len)));// packet length host order
         len += 4;
-        if (!(packetLen == 2 && buffer[len++] == 0 && buffer[len++] == 4)) {
+        if (!(packetLen == 2 && buffer[len++] == 0 && buffer[len] == 4)) {
             len = 4;
-            cout << "CLIENT_E_RECV_CHECKVERSION_2 (" <<  CLIENT_E_RECV_CHECKVERSION_2 << ") error " << packetLen << " " << int(buffer[len++]) << " " << int(buffer[len++]) << endl;
+            cout << "CLIENT_E_RECV_CHECKVERSION_2 (" <<  CLIENT_E_RECV_CHECKVERSION_2 << ") error " << packetLen << " " << int(buffer[len++]) << " " << int(buffer[len]) << endl;
             return CLIENT_E_RECV_CHECKVERSION_2;
         }
     }
@@ -387,13 +434,222 @@ int WoMicClient::handshake() {
 int WoMicClient::disconnect() {
     return -1;
 }
+    // REFERENCE_TIME time units per second and per millisecond
+#define REFTIMES_PER_SEC  10000000
+#define REFTIMES_PER_MILLISEC  10000
 
+#define EXIT_ON_ERROR(hres)  \
+              if (FAILED(hres)) { goto Exit; }
+
+const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
+const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
+const IID IID_IAudioClient = __uuidof(IAudioClient);
+const IID IID_IAudioRenderClient = __uuidof(IAudioRenderClient);
 int WoMicClient::openAudioDevice() {
+    HRESULT hr;
+    REFERENCE_TIME hnsRequestedDuration = 0;
+    IMMDeviceEnumerator *pEnumerator = NULL;
+    IMMDevice *pDevice = NULL;
+    IMMDeviceCollection *pDevices = NULL;
+    WAVEFORMATEX pwfx;
+    CoInitializeEx(NULL, NULL);
+
+
+    LPWSTR pwszID = NULL;
+    IPropertyStore *pProps = NULL;
+    PROPVARIANT varName;
+    UINT  cnt;
+    bool found = false;
+
+    hr = CoCreateInstance(
+           CLSID_MMDeviceEnumerator, NULL,
+           CLSCTX_ALL, IID_IMMDeviceEnumerator,
+           (void**)&pEnumerator);
+    cout << "CoCreateInstance " << hr << " " << HRESULT_CODE(hr) << endl;
+    EXIT_ON_ERROR(hr)
+    hr = pEnumerator->EnumAudioEndpoints(
+                        eRender, DEVICE_STATE_ACTIVE, &pDevices);
+    cout << "EnumAudioEndpoints " << hr << " " << HRESULT_CODE(hr) << endl;
+    EXIT_ON_ERROR(hr)
+
+    hr = pDevices->GetCount(&cnt);
+    cout << "GetCount " << hr << " " << HRESULT_CODE(hr) << endl;
+    EXIT_ON_ERROR(hr)
+    for (ULONG i = 0; i < cnt; i++)
+    {
+        // Get pointer to endpoint number i.
+        hr = pDevices->Item(i, &pDevice);
+        EXIT_ON_ERROR(hr)
+
+        // Get the endpoint ID string.
+        hr = pDevice->GetId(&pwszID);
+        EXIT_ON_ERROR(hr)
+
+        hr = pDevice->OpenPropertyStore(
+                          STGM_READ, &pProps);
+        EXIT_ON_ERROR(hr)
+        // Initialize container for property value.
+        PropVariantInit(&varName);
+
+        // Get the endpoint's friendly-name property.
+        hr = pProps->GetValue(
+                       PKEY_Device_FriendlyName, &varName);
+        EXIT_ON_ERROR(hr)
+
+        // Print endpoint friendly name and endpoint ID.
+        printf("Endpoint %d: \"%S\" (%S)\n",
+               i, varName.pwszVal, pwszID);
+
+        CoTaskMemFree(pwszID);
+        pwszID = NULL;
+        pProps->Release();
+        found = wstring(varName.pwszVal) == L"Line 1 (Virtual Audio Cable)";
+        PropVariantClear(&varName);
+        if (found) {
+            break;
+        }
+        pDevice->Release();
+    }
+
+    hr = pDevice->Activate(
+                    IID_IAudioClient, CLSCTX_ALL,
+                    NULL, (void**)&pAudioClient);
+    cout << "Activate" << hr << " " << HRESULT_CODE(hr) << endl;
+    pDevice->Release();
+
+    // Call a helper function to negotiate with the audio
+    // device for an exclusive-mode stream format.
+    pwfx.wFormatTag = WAVE_FORMAT_PCM;
+    pwfx.nChannels = channels;
+    pwfx.nSamplesPerSec = sampleRate;
+    pwfx.wBitsPerSample = 16; //short
+    pwfx.nBlockAlign = pwfx.nChannels * pwfx.wBitsPerSample / 8;
+    pwfx.nAvgBytesPerSec = pwfx.nSamplesPerSec * pwfx.nBlockAlign;
+    pwfx.cbSize = 0;
+
+    hr = pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_EXCLUSIVE, &pwfx, NULL);
+    if (hr != S_OK) {
+        cout << "Failed on IsFormatSupported with error " << hr << " " << HRESULT_CODE(hr) << " " << hr << " " << HRESULT_CODE(AUDCLNT_E_UNSUPPORTED_FORMAT) << endl;
+        return CLIENT_E_DEVICE_FORMAT;
+    }
+    // Initialize the stream to play at the minimum latency.
+    hr = pAudioClient->GetDevicePeriod(NULL, &hnsRequestedDuration);
+    cout << "GetDevicePeriod" << hr << " " << HRESULT_CODE(hr) << endl;
+    EXIT_ON_ERROR(hr)
+
+    hr = pAudioClient->Initialize(
+                         AUDCLNT_SHAREMODE_EXCLUSIVE,
+                         AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                         hnsRequestedDuration,
+                         hnsRequestedDuration,
+                         &pwfx,
+                         NULL);
+
+    cout << "Initialize" << hr << " " << HRESULT_CODE(hr) << endl;
+    if (hr == AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED) {
+        // Align the buffer if needed, see IAudioClient::Initialize() documentation
+        UINT32 nFrames = 0;
+        hr = pAudioClient->GetBufferSize(&nFrames);
+        EXIT_ON_ERROR(hr)
+        hnsRequestedDuration = (REFERENCE_TIME)((double)REFTIMES_PER_SEC / pwfx.nSamplesPerSec * nFrames + 0.5);
+        hr = pAudioClient->Initialize(
+            AUDCLNT_SHAREMODE_EXCLUSIVE,
+            AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+            hnsRequestedDuration,
+            hnsRequestedDuration,
+            &pwfx,
+            NULL);
+        cout << "Initialize2" << hr << " " << HRESULT_CODE(hr) << endl;
+    }
+    EXIT_ON_ERROR(hr)
+    // Create an event handle and register it for
+    // buffer-event notifications.
+    hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    cout << "CreateEvent" << hEvent << endl;
+    if (hEvent == NULL)
+    {
+        hr = E_FAIL;
+        goto Exit;
+    }
+
+    hr = pAudioClient->SetEventHandle(hEvent);
+    cout << "SetEventHandle" << hr << " " << HRESULT_CODE(hr) << endl;
+    EXIT_ON_ERROR(hr);
+    audioThread = std::make_unique<thread>(&WoMicClient::audioDeviceLoop, this);
     return CLIENT_E_OK;
+Exit:
+    cout << "hr " << hr << " " << HRESULT_CODE(hr) << endl;
+    return -1000;
+}
+int WoMicClient::audioDeviceLoop() {
+    HRESULT result;
+    IAudioRenderClient *pRenderClient = NULL;
+    UINT32 bufferFrameCount;
+    BYTE *pData;
+
+    // Get the actual size of the two allocated buffers.
+    result = pAudioClient->GetBufferSize(&bufferFrameCount);
+    //EXIT_ON_ERROR(hr)
+
+    result = pAudioClient->GetService(
+                         IID_IAudioRenderClient,
+                         (void**)&pRenderClient);
+    if (FAILED(result)) {
+        return -10001;
+    }
+    // Ask MMCSS to temporarily boost the thread priority
+    // to reduce glitches while the low-latency stream plays.
+
+
+    result = pAudioClient->Start();  // Start playing.
+
+    int asd = 0;
+    // Each loop fills one of the two buffers.
+    while (true)
+    {
+        // Wait for next buffer event to be signaled.
+        DWORD retval = WaitForSingleObject(hEvent, 2000);
+        if (retval != WAIT_OBJECT_0)
+        {
+            // Event handle timed out after a 2-second wait.
+            pAudioClient->Stop();
+            result = ERROR_TIMEOUT;
+            return CLIENT_E_DEVICE_TIMEOUT;
+            //goto Exit;
+        }
+
+        // Grab the next empty buffer from the audio device.
+        result = pRenderClient->GetBuffer(bufferFrameCount, &pData);
+        //EXIT_ON_ERROR(hr)
+        unsigned int buffered = audioQueue.was_size();
+        if (asd++ % 1000 == 0) {
+            cout << "Need " << bufferFrameCount * channels << "buffered" << audioQueue.was_size() << endl;
+        }
+        for (int i = 0; i < min(buffered, bufferFrameCount * channels); i++) {
+            *(short*)(pData + i * 2) = short(audioQueue.pop());
+        }
+
+        for (int i = buffered; i < bufferFrameCount * channels; i++) { // if we ran out of data fill the rest with zeroes
+            *(short*)(pData + i * 2) = 0;   // should probably use an algorithm call instead of a for loop here
+        }
+        // 2 is bytes per sample
+        // Load the buffer with data from the audio source.
+        //hr = pMySource->LoadData(bufferFrameCount, pData, &flags);
+        //EXIT_ON_ERROR(hr)
+
+        result = pRenderClient->ReleaseBuffer(bufferFrameCount, 0);
+        //EXIT_ON_ERROR(hr)
+    }
+    result = pAudioClient->Stop();  // Stop playing.
+    pRenderClient->Release();
 }
 
 int WoMicClient::closeAudioDevice() {
 
+    if (hEvent != NULL){
+        CloseHandle(hEvent);
+    }
+    return -1;
 }
 
 int WoMicClient::stop() {
