@@ -19,9 +19,11 @@
 #include <devpkey.h>
 #include <Functiondiscoverykeys_devpkey.h>
 
+#include <fstream>
+
 using namespace std;
 
-typedef atomic_queue::AtomicQueue<int32_t, 48000 * 2, 256*256*100> AudioQueue;
+typedef atomic_queue::AtomicQueue<int32_t, CLIENT_QUEUE_SIZE, 256*256*100> AudioQueue;
 
 enum ClientStatus {
     WAITING,

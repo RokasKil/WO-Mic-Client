@@ -262,23 +262,26 @@ int WoMicClient::udpListen() {
     unique_ptr<short[]> outBuffer = std::make_unique<short[]>(frameSize * channels);
     cout << "recvFrom" << endl;
     while ((result = recvfrom(serverSocket, buffer.get(), 1024*1024, 0, NULL, NULL)) != SOCKET_ERROR) { //Neziurim kas atsiunte
-        // {BYTE protocol should be 4} {BYTE unknown always 0} {WORD opus packet len} {WORD sequence NR} {DWORD timestamp} {BYTE volume (Paid version not gonna do this)} [BYTE * (opus packet len) opus encoded audio data]
+        // {BYTE protocol should be 4} {BYTE unknown always 0} {WORD opus packet len} {WORD sequence NR} {DWORD timestamp} {BYTE volume (Paid version not gonna do this)} [BYTE * (opus packet len - 7) opus encoded audio data]
         protocol = buffer[0];
         if (protocol != 4) {
             cout << "Protocol not 4 skipping packet " << endl;
+            continue;
         }
         opusLen = ntohs(*((unsigned short *) (buffer.get() + 2)));
         opusData = (unsigned char*) buffer.get() + 11;
-        result = opus_decode(opusDecoder, opusData, opusLen, outBuffer.get(), sampleRate / 1000 * 20, 0);
+
+        result = opus_decode(opusDecoder, opusData, opusLen - 7, outBuffer.get(), sampleRate , 0);
         if (result < 0) {
             cout << "opus_decode error " << result << endl;
         }
         else {
+            if (result > 2000) {
+                cout << "decoded " << result / channels << " samples" << endl;
+            }
             //cout << "decoded " << result / channels << " samples" << endl;
-            for (int i = 0; i < result && !audioQueue.was_full(); i++) {
-                if (outBuffer[i] != short(int(outBuffer[i]))) {
-                    cout << "REEE" << endl;
-                }
+            int buffered = audioQueue.was_size();
+            for (int i = 0; i < min(result, CLIENT_QUEUE_SIZE - buffered); i++) {
                 audioQueue.push(outBuffer[i]);
             }
             if (audioQueue.was_full()) {
@@ -540,8 +543,8 @@ int WoMicClient::openAudioDevice() {
     hr = pAudioClient->Initialize(
                          AUDCLNT_SHAREMODE_EXCLUSIVE,
                          AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-                         hnsRequestedDuration,
-                         hnsRequestedDuration,
+                         hnsRequestedDuration * 2,
+                         hnsRequestedDuration * 2,
                          &pwfx,
                          NULL);
 
@@ -586,14 +589,16 @@ int WoMicClient::audioDeviceLoop() {
     IAudioRenderClient *pRenderClient = NULL;
     UINT32 bufferFrameCount;
     BYTE *pData;
-
+    unique_ptr<BYTE[]> preloaded;
+    unsigned int preloadedLen = 0;
     // Get the actual size of the two allocated buffers.
     result = pAudioClient->GetBufferSize(&bufferFrameCount);
     //EXIT_ON_ERROR(hr)
-
+    preloaded = make_unique<BYTE[]>(bufferFrameCount * channels * 2);
     result = pAudioClient->GetService(
                          IID_IAudioRenderClient,
                          (void**)&pRenderClient);
+
     if (FAILED(result)) {
         return -10001;
     }
@@ -625,20 +630,30 @@ int WoMicClient::audioDeviceLoop() {
         if (asd++ % 1000 == 0) {
             cout << "Need " << bufferFrameCount * channels << "buffered" << audioQueue.was_size() << endl;
         }
-        for (int i = 0; i < min(buffered, bufferFrameCount * channels); i++) {
-            *(short*)(pData + i * 2) = short(audioQueue.pop());
+        memcpy(pData, preloaded.get(), preloadedLen * 2);
+        for (int i = preloadedLen; i < min(buffered, bufferFrameCount * channels) ; i++) {
+            *(short*)(pData + i * 2) = (audioQueue.pop());
         }
-
-        for (int i = buffered; i < bufferFrameCount * channels; i++) { // if we ran out of data fill the rest with zeroes
-            *(short*)(pData + i * 2) = 0;   // should probably use an algorithm call instead of a for loop here
+        for (int i = preloadedLen + buffered; i < bufferFrameCount * channels; i++) { // if we ran out of data fill the rest with zeroes
+            *(short*)(pData + i * 2) = 0; // should probably use an algorithm call instead of a for loop here
         }
         // 2 is bytes per sample
-        // Load the buffer with data from the audio source.
-        //hr = pMySource->LoadData(bufferFrameCount, pData, &flags);
-        //EXIT_ON_ERROR(hr)
 
         result = pRenderClient->ReleaseBuffer(bufferFrameCount, 0);
         //EXIT_ON_ERROR(hr)
+
+        buffered = audioQueue.was_size();
+        preloadedLen = min(buffered, bufferFrameCount * channels);
+        for (int i = 0; i < preloadedLen; i++) { // Preload the next packet
+            *(short*)(preloaded.get() + i * 2) = (audioQueue.pop());
+        }
+        int signedBuffered;
+        if ((signedBuffered = audioQueue.was_size() - bufferFrameCount * channels) > sampleRate * cutOff) {
+            for(int i = 0; i < signedBuffered; i++) {
+                audioQueue.pop();
+            }
+            cout << "Purged audio queue " << audioQueue.was_size() << " was " << signedBuffered << endl;
+        }
     }
     result = pAudioClient->Stop();  // Stop playing.
     pRenderClient->Release();

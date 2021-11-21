@@ -1,13 +1,13 @@
 # depslib dependency file v1.0
-1637510812 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
+1637524251 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
 	"src/client/WoMicClient.h"
 	<tchar.h>
 	<windows.h>
 
-1637514035 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
+1637524173 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
 	"WoMicClient.h"
 
-1637512594 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
+1637524244 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
 	<winsock2.h>
 	<windows.h>
 	<ws2tcpip.h>
@@ -23,6 +23,7 @@
 	<initguid.h>
 	<devpkey.h>
 	<Functiondiscoverykeys_devpkey.h>
+	<fstream>
 
 1635781287 d:\mif\7semestras\winapi\wo-mic-client\libs\include\atomic_queue\atomic_queue.h
 	"defs.h"
@@ -38,7 +39,7 @@
 	<atomic>
 	<emmintrin.h>
 
-1637510195 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\clientdefines.h
+1637524119 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\clientdefines.h
 
 1554936451 d:\mif\7semestras\winapi\wo-mic-client\libs\include\opus.h
 	"opus_types.h"

@@ -44,7 +44,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     if (!RegisterClassEx (&wincl))
         return 0;
 
-    WoMicClient* client = new WoMicClient("192.168.1.114", 8125, 34568, "", 0.1, true);
+    WoMicClient* client = new WoMicClient("192.168.1.114", 8125, 34568, "", 0.3, true);
 
     cout << "Start result \n" << client->start();
 
