@@ -13,17 +13,18 @@
 #include <opus.h>
 #include <Audioclient.h>
 #include <mmdeviceapi.h>
-
 #include <setupapi.h>
 #include <initguid.h>
 #include <devpkey.h>
 #include <Functiondiscoverykeys_devpkey.h>
-
-#include <fstream>
+#include <chrono>
 
 using namespace std;
 
+
 typedef atomic_queue::AtomicQueue<int32_t, CLIENT_QUEUE_SIZE, 256*256*100> AudioQueue;
+
+typedef void (*WoMicClientCallback)(int) ;
 
 enum ClientStatus {
     WAITING,
@@ -39,9 +40,11 @@ class WoMicClient
 public:
     WoMicClient();
     ~WoMicClient();
-    WoMicClient(string ip, unsigned short serverPort, unsigned short clientPort, string device, float cutOff, bool autoReconnect);
+    WoMicClient(string ip, unsigned short serverPort, unsigned short clientPort, string device, float cutOff, bool autoReconnect, float speedOff);
     int start();
     int stop();
+    int startAsync(WoMicClientCallback callback);
+    int stopAsync(WoMicClientCallback callback);
     ClientStatus getStatus();
 
 
@@ -63,8 +66,14 @@ public:
     float getCutOff();
     WoMicClient* setCutOff(float cutOff);
 
+    float getSpeedOff();
+    WoMicClient* getSpeedOff(float speedOff);
+
     float bufferLeft();
 private:
+    void start(WoMicClientCallback callback);
+    void stop(WoMicClientCallback callback);
+
     int connect();
     int handshake();
     int disconnect();
@@ -81,9 +90,11 @@ private:
     void pingFailed();
 
     int openAudioDevice();
+
     int closeAudioDevice();
 
-    int audioDeviceLoop();
+    int startAudio();
+    int audioDeviceLoop(IAudioClient *pAudioClient);
 
     ClientStatus status = WAITING;
     bool autoReconnect;
@@ -92,7 +103,8 @@ private:
     unsigned short usedServerPort;
     unsigned short clientPort; // for our UDP reciever
     string device;
-    float cutOff; //when to delete voice data
+    atomic<float> cutOff; //when to delete voice data
+    atomic<float> speedOff;
     AudioQueue audioQueue;
     SOCKET clientSocket = INVALID_SOCKET; //TCP client socket
     SOCKET serverSocket = INVALID_SOCKET; //UDP server socket for incoming audio data
@@ -100,11 +112,17 @@ private:
     unique_ptr<thread> pingThread = NULL;
     unique_ptr<thread> audioThread = NULL;
     unique_ptr<thread> reconnectThread = NULL;
+    unique_ptr<thread> stopThread = NULL;
+    unique_ptr<thread> startThread = NULL;
     bool wsaInitialized = false;
-
     OpusDecoder* opusDecoder = NULL;
     HANDLE hEvent = NULL;
-    IAudioClient *pAudioClient = NULL;
+
+    atomic<int> audioResult;
+
+    atomic<bool> doneStart = {false};
+
+    atomic<bool> doneStop = {false};
 
     const int sampleRate = 48000;
     const int channels = 1;

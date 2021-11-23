@@ -30,14 +30,24 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add directory="../libs/include" />
 		</Compiler>
 		<Linker>
 			<Add library="gdi32" />
 			<Add library="user32" />
 			<Add library="kernel32" />
 			<Add library="comctl32" />
+			<Add library="opus" />
+			<Add library="ws2_32" />
+			<Add library="mswsock" />
+			<Add library="advApi32" />
+			<Add library="Ole32" />
+			<Add directory="../libs/libs" />
 		</Linker>
 		<Unit filename="main.cpp" />
+		<Unit filename="src/client/ClientDefines.h" />
+		<Unit filename="src/client/WoMicClient.cpp" />
+		<Unit filename="src/client/WoMicClient.h" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>
