@@ -18,13 +18,12 @@
 #include <devpkey.h>
 #include <Functiondiscoverykeys_devpkey.h>
 #include <chrono>
-
-using namespace std;
-
+#include <functional>
+#include <vector>
 
 typedef atomic_queue::AtomicQueue<int32_t, CLIENT_QUEUE_SIZE, 256*256*100> AudioQueue;
 
-typedef void (*WoMicClientCallback)(int) ;
+typedef std::function<void(int)> WoMicClientCallback;
 
 enum ClientStatus {
     WAITING,
@@ -40,7 +39,6 @@ class WoMicClient
 public:
     WoMicClient();
     ~WoMicClient();
-    WoMicClient(string ip, unsigned short serverPort, unsigned short clientPort, string device, float cutOff, bool autoReconnect, float speedOff);
     int start();
     int stop();
     int startAsync(WoMicClientCallback callback);
@@ -48,8 +46,8 @@ public:
     ClientStatus getStatus();
 
 
-    string getIp();
-    WoMicClient* setIp(string ip);
+    std::string getIp();
+    WoMicClient* setIp(std::string ip);
 
     unsigned short getServerPort();
     WoMicClient* setServerPort(unsigned short serverPort);
@@ -57,8 +55,8 @@ public:
     unsigned short getClientPort();
     WoMicClient* setClientPort(unsigned short clientPort);
 
-    string getDevice();
-    WoMicClient* setDevice(string device);
+    std::wstring getDevice();
+    WoMicClient* setDevice(std::wstring device);
 
     bool getAutoReconnect();
     WoMicClient* setAutoReconnect(bool autoReconnect);
@@ -67,9 +65,22 @@ public:
     WoMicClient* setCutOff(float cutOff);
 
     float getSpeedOff();
-    WoMicClient* getSpeedOff(float speedOff);
+    WoMicClient* setSpeedOff(float speedOff);
+
+    WoMicClientCallback getFailCallback();
+    WoMicClient* setFailCallback(WoMicClientCallback callback);
+
+    int getFailCode();
 
     float bufferLeft();
+
+    int getSamplesInBuffer();
+
+    int getSampleRate();
+
+    int getChannels();
+
+    int getAvailableDevices(std::vector<std::wstring> &devices);
 private:
     void start(WoMicClientCallback callback);
     void stop(WoMicClientCallback callback);
@@ -87,7 +98,7 @@ private:
 
     int udpListen();
     int pingLoop();
-    void pingFailed();
+    void pingFailed(int reason);
 
     int openAudioDevice();
 
@@ -95,34 +106,37 @@ private:
 
     int startAudio();
     int audioDeviceLoop(IAudioClient *pAudioClient);
+    void purgeAudioQueue(int leave);
 
     ClientStatus status = WAITING;
     bool autoReconnect;
-    string ip;
+    std::string ip;
     unsigned short serverPort;
     unsigned short usedServerPort;
     unsigned short clientPort; // for our UDP reciever
-    string device;
-    atomic<float> cutOff; //when to delete voice data
-    atomic<float> speedOff;
+    std::wstring device;
+    std::atomic<float> cutOff = {1}; //when to delete voice data (seconds)
+    std::atomic<float> speedOff = {1}; // when to speed up voice data (seconds)
     AudioQueue audioQueue;
     SOCKET clientSocket = INVALID_SOCKET; //TCP client socket
     SOCKET serverSocket = INVALID_SOCKET; //UDP server socket for incoming audio data
-    unique_ptr<thread> recvThread = NULL;
-    unique_ptr<thread> pingThread = NULL;
-    unique_ptr<thread> audioThread = NULL;
-    unique_ptr<thread> reconnectThread = NULL;
-    unique_ptr<thread> stopThread = NULL;
-    unique_ptr<thread> startThread = NULL;
+    std::unique_ptr<std::thread> recvThread = NULL;
+    std::unique_ptr<std::thread> pingThread = NULL;
+    std::unique_ptr<std::thread> audioThread = NULL;
+    std::unique_ptr<std::thread> reconnectThread = NULL;
+    std::unique_ptr<std::thread> stopThread = NULL;
+    std::unique_ptr<std::thread> startThread = NULL;
     bool wsaInitialized = false;
     OpusDecoder* opusDecoder = NULL;
     HANDLE hEvent = NULL;
 
-    atomic<int> audioResult;
+    std::atomic<int> audioResult;
+    std::atomic<bool> doneStart = {false};
+    std::atomic<bool> doneStop = {false};
 
-    atomic<bool> doneStart = {false};
+    int failCode;
 
-    atomic<bool> doneStop = {false};
+    WoMicClientCallback failCallback;
 
     const int sampleRate = 48000;
     const int channels = 1;

@@ -1,5 +1,7 @@
 #include "WoMicClient.h"
 
+using namespace std;
+
 WoMicClient::WoMicClient() {
 
 }
@@ -9,16 +11,6 @@ WoMicClient::~WoMicClient() {
     if(wsaInitialized) {
         WSACleanup();
     }
-}
-
-WoMicClient::WoMicClient(string ip, unsigned short serverPort, unsigned short clientPort, string device, float cutOff, bool autoReconnect, float speedOff) {
-    this->ip = ip;
-    this->serverPort = serverPort;
-    this->clientPort = clientPort;
-    this->device = device;
-    this->cutOff = cutOff;
-    this->autoReconnect = autoReconnect;
-    this->speedOff = speedOff;
 }
 
 int WoMicClient::start() {
@@ -71,7 +63,7 @@ float WoMicClient::getSpeedOff() {
     return speedOff;
 }
 
-WoMicClient* WoMicClient::getSpeedOff(float speedOff) {
+WoMicClient* WoMicClient::setSpeedOff(float speedOff) {
     this->speedOff = speedOff;
     return this;
 }
@@ -87,7 +79,7 @@ void WoMicClient::start(WoMicClientCallback callback) {
 void WoMicClient::stop(WoMicClientCallback callback) {
     int result = stop();
     if (callback != NULL) {
-        callback(result);
+        callback(status == FAILED ? failCode : result);
     }
     doneStop = true;
 }
@@ -192,7 +184,7 @@ int WoMicClient::pingLoop() {
         buffer[len++] = CLIENT_WOMIC_PING;
         result = send(clientSocket, buffer, len, 0);
         if (result == SOCKET_ERROR) {
-            pingFailed();
+            pingFailed(CLIENT_E_SEND_PING_0);
             cout << "CLIENT_E_SEND_PING_0 (" <<  CLIENT_E_SEND_PING_0 << ") error " << result << " " << WSAGetLastError() << endl;
             return CLIENT_E_SEND_PING_0;
         }
@@ -202,7 +194,7 @@ int WoMicClient::pingLoop() {
         len += 4;
         result = send(clientSocket, buffer, len, 0);
         if (result == SOCKET_ERROR) {
-            pingFailed();
+            pingFailed(CLIENT_E_SEND_PING_1);
             cout << "CLIENT_E_SEND_PING_1 (" <<  CLIENT_E_SEND_PING_1 << ") error " << result << " " << WSAGetLastError() << endl;
             return CLIENT_E_SEND_PING_1;
         }
@@ -210,14 +202,16 @@ int WoMicClient::pingLoop() {
     }
 }
 
-void WoMicClient::pingFailed() {
+void WoMicClient::pingFailed(int reason) {
     closesocket(clientSocket);
     clientSocket = INVALID_SOCKET;
     if (autoReconnect && status == CONNECTED) {
         reconnectAsync();
     }
-    else {
+    else if (status != STOPPING && status != FAILED) {
+        failCode = reason;
         status = FAILED;
+        stopAsync(failCallback);
     }
 }
 
@@ -301,6 +295,7 @@ int WoMicClient::startUDPServer() {
 int WoMicClient::stopUDPServer() {
     if (serverSocket != INVALID_SOCKET) {
         closesocket(serverSocket);
+        serverSocket = INVALID_SOCKET;
     }
     if (recvThread != NULL) {
         if (recvThread->joinable()) {
@@ -497,6 +492,10 @@ int WoMicClient::disconnect() {
     if (clientSocket != INVALID_SOCKET) {
         closesocket(clientSocket);
         clientSocket = INVALID_SOCKET;
+        if (pingThread != NULL && pingThread->joinable()) {
+            pingThread->join();
+            pingThread = NULL;
+        }
     }
     if (serverSocket != INVALID_SOCKET) {
         stopUDPServer();
@@ -518,11 +517,13 @@ int WoMicClient::openAudioDevice() {
         while(audioResult == CLIENT_E_NONE) {
             this_thread::sleep_for(chrono::milliseconds(1));
         }
+        return audioResult;
     }
     else {
         return CLIENT_E_INVALIDSTATE;
     }
 }
+
 int WoMicClient::startAudio() {
     int result;
     HRESULT hr;
@@ -531,7 +532,6 @@ int WoMicClient::startAudio() {
     IMMDevice *pDevice = NULL;
     IMMDeviceCollection *pDevices = NULL;
     WAVEFORMATEX pwfx;
-    LPWSTR pwszID = NULL;
     IPropertyStore *pProps = NULL;
     PROPVARIANT varName;
     UINT cnt;
@@ -606,8 +606,11 @@ int WoMicClient::startAudio() {
         pDevice = NULL;
     }
 
+    pDevices->Release();
+    pDevices = NULL;
+
     if (pDevice == NULL) {
-        cout << "Failed to get device " << device;
+        wcout << "Failed to get device " << device;
         audioResult = CLIENT_E_DEVICE_NOTFOUND;
         goto audioStart_Exit;
     }
@@ -712,10 +715,108 @@ int WoMicClient::startAudio() {
         pDevice->Release();
         pDevice = NULL;
     }
+    if (pDevices != NULL) {
+        pDevices->Release();
+        pDevices = NULL;
+    }
     if (comInitialized)
         CoUninitialize();
     return audioResult;
 }
+
+int WoMicClient::getAvailableDevices(vector<wstring>& devices) {
+    int result = CLIENT_E_OK;
+    HRESULT hr;
+    IMMDeviceEnumerator *pEnumerator = NULL;
+    IMMDevice *pDevice = NULL;
+    IMMDeviceCollection *pDevices = NULL;
+    IPropertyStore *pProps = NULL;
+    PROPVARIANT varName;
+    UINT cnt;
+    bool comInitialized = false;
+    vector<wstring> localDevices;
+
+    hr = CoInitializeEx(NULL, 0);
+    if (!(hr == S_OK || hr == S_FALSE)) {
+        result = CLIENT_E_DEVICE_COMINIT;
+        goto getAvailableDevices_Exit;
+    }
+    hr = CoCreateInstance(
+           CLSID_MMDeviceEnumerator, NULL,
+           CLSCTX_ALL, IID_IMMDeviceEnumerator,
+           (void**)&pEnumerator);
+    if (FAILED(hr)) {
+        cout << "CoCreateInstance failed" << hr << " " << HRESULT_CODE(hr) << endl;
+        result = CLIENT_E_DEVICE_CREATEENUMERATOR;
+        goto getAvailableDevices_Exit;
+    }
+    comInitialized = true;
+    hr = pEnumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &pDevices);
+    if (FAILED(hr)) {
+        cout << "EnumAudioEndpoints failed" << hr << " " << HRESULT_CODE(hr) << endl;
+        result = CLIENT_E_DEVICE_ENUMAUDIO;
+        goto getAvailableDevices_Exit;
+    }
+
+    hr = pDevices->GetCount(&cnt);
+    if (FAILED(hr)) {
+        cout << "GetCount failed" << hr << " " << HRESULT_CODE(hr) << endl;
+        result = CLIENT_E_DEVICE_COUNTAUDIO;
+        goto getAvailableDevices_Exit;
+    }
+    for (UINT i = 0; i < cnt; i++)
+    {
+        // Get pointer to endpoint number i.
+        hr = pDevices->Item(i, &pDevice);
+        if (FAILED(hr)) {
+            cout << "Item failed" << hr << " " << HRESULT_CODE(hr) << endl;
+            result = CLIENT_E_DEVICE_GETAUDIO;
+            goto getAvailableDevices_Exit;
+        }
+
+        hr = pDevice->OpenPropertyStore(STGM_READ, &pProps);
+        if (FAILED(hr)) {
+            cout << "OpenPropertyStore failed" << hr << " " << HRESULT_CODE(hr) << endl;
+            result = CLIENT_E_DEVICE_OPENPROP;
+            goto getAvailableDevices_Exit;
+        }
+
+        // Initialize container for property value.
+        PropVariantInit(&varName);
+
+        // Get the endpoint's friendly-name property.
+        hr = pProps->GetValue(PKEY_Device_FriendlyName, &varName);
+        pProps->Release();
+
+        if (FAILED(hr)) {
+            cout << "GetValue failed" << hr << " " << HRESULT_CODE(hr) << endl;
+            result = CLIENT_E_DEVICE_GETPROP;
+            goto getAvailableDevices_Exit;
+        }
+        localDevices.push_back(wstring(varName.pwszVal));
+        PropVariantClear(&varName);
+        pDevice->Release();
+        pDevice = NULL;
+    }
+    getAvailableDevices_Exit:
+    if (pDevice != NULL) {
+        pDevice->Release();
+        pDevice = NULL;
+    }
+    if (pDevices != NULL) {
+        pDevices->Release();
+        pDevices = NULL;
+    }
+    if (comInitialized)
+        CoUninitialize();
+
+    if (result == CLIENT_E_OK) {
+        devices.clear();
+        devices.insert(devices.end(), localDevices.begin(), localDevices.end());
+    }
+    return result;
+}
+
 
 int WoMicClient::audioDeviceLoop(IAudioClient *pAudioClient) {
     HRESULT hr;
@@ -750,7 +851,11 @@ int WoMicClient::audioDeviceLoop(IAudioClient *pAudioClient) {
         goto audioDeviceLoop_Exit;
     }
     playing = true;
+
+    purgeAudioQueue(bufferFrameCount * channels);
+
     // Each loop fills one of the two buffers.
+
     while (true)
     {
         // Wait for next buffer event to be signaled.
@@ -801,12 +906,8 @@ int WoMicClient::audioDeviceLoop(IAudioClient *pAudioClient) {
                 speed = 0;
             }
         }
-        int signedBuffered;
-        if ((signedBuffered = audioQueue.was_size() - bufferFrameCount * channels) > sampleRate * cutOff) {
-            for(int i = 0; i < signedBuffered; i++) {
-                audioQueue.pop();
-            }
-            cout << "Purged audio queue " << audioQueue.was_size() << " was " << signedBuffered << endl;
+        if (((long long)(audioQueue.was_size()) - bufferFrameCount * channels) > sampleRate * cutOff) {
+            purgeAudioQueue(bufferFrameCount * channels);
         }
     }
     audioDeviceLoop_Exit:
@@ -821,10 +922,18 @@ int WoMicClient::audioDeviceLoop(IAudioClient *pAudioClient) {
         pRenderClient = NULL;
     }
     if (status != STOPPING && status != FAILED) {
+        failCode = result;
         status = FAILED;
-        stopAsync(NULL);
+        stopAsync(failCallback);
     }
     return result;
+}
+void WoMicClient::purgeAudioQueue(int leave) {
+    int signedBuffered = audioQueue.was_size();
+    for(int i = 0; i < signedBuffered - leave; i++) {
+        audioQueue.pop();
+    }
+    cout << "Purged audio queue " << audioQueue.was_size() << " was " << signedBuffered << " left " << leave << endl;
 }
 
 int WoMicClient::closeAudioDevice() {
@@ -888,11 +997,11 @@ WoMicClient* WoMicClient::setClientPort(unsigned short clientPort) {
     return this;
 }
 
-string WoMicClient::getDevice() {
+wstring WoMicClient::getDevice() {
     return device;
 }
 
-WoMicClient* WoMicClient::setDevice(string device) {
+WoMicClient* WoMicClient::setDevice(wstring device) {
     this->device = device;
     return this;
 }
@@ -918,3 +1027,30 @@ WoMicClient* WoMicClient::setAutoReconnect(bool autoReconnect) {
 float WoMicClient::bufferLeft() {
     return float(audioQueue.was_size())/sampleRate/channels;
 }
+
+WoMicClientCallback WoMicClient::getFailCallback() {
+    return failCallback;
+}
+
+WoMicClient* WoMicClient::setFailCallback(WoMicClientCallback callback) {
+    failCallback = callback;
+    return this;
+}
+
+int WoMicClient::getFailCode() {
+    return failCode;
+}
+
+int WoMicClient::getSamplesInBuffer() {
+    return audioQueue.was_size();
+}
+
+int WoMicClient::getSampleRate() {
+    return sampleRate;
+}
+
+int WoMicClient::getChannels() {
+    return channels;
+}
+
+
