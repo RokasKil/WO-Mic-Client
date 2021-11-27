@@ -2,29 +2,36 @@
 <CodeBlocks_layout_file>
 	<FileVersion major="1" minor="0" />
 	<ActiveTarget name="Debug" />
-	<File name="main.cpp" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="main.cpp" open="1" top="1" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="2204" topLine="24" />
+			<Cursor1 position="12527" topLine="203" />
 		</Cursor>
-	</File>
-	<File name="src\client\ClientDefines.h" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="1146" topLine="3" />
-		</Cursor>
-	</File>
-	<File name="src\client\WoMicClient.cpp" open="1" top="1" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="28652" topLine="596" />
-		</Cursor>
-		<Folding>
-			<Collapse line="184" />
-			<Collapse line="212" />
-			<Collapse line="223" />
-		</Folding>
 	</File>
 	<File name="src\client\WoMicClient.h" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="3197" topLine="66" />
+			<Cursor1 position="1956" topLine="48" />
+		</Cursor>
+	</File>
+	<File name="src\client\WoMicClient.cpp" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="31739" topLine="479" />
+		</Cursor>
+		<Folding>
+			<Collapse line="107" />
+			<Collapse line="176" />
+			<Collapse line="204" />
+			<Collapse line="217" />
+			<Collapse line="227" />
+			<Collapse line="254" />
+			<Collapse line="294" />
+			<Collapse line="308" />
+			<Collapse line="349" />
+			<Collapse line="490" />
+		</Folding>
+	</File>
+	<File name="src\client\ClientDefines.h" open="1" top="0" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="130" topLine="0" />
 		</Cursor>
 	</File>
 </CodeBlocks_layout_file>

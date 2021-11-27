@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1637856115 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
+1638015959 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
 	"src/client/WoMicClient.h"
 	<tchar.h>
 	<windows.h>
@@ -7,11 +7,13 @@
 	<sstream>
 	<windowsx.h>
 	<commctrl.h>
+	<Shlobj.h>
+	<Knownfolders.h>
 
-1637853966 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
+1638011054 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
 	"WoMicClient.h"
 
-1637853709 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
+1637856360 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
 	<winsock2.h>
 	<windows.h>
 	<ws2tcpip.h>

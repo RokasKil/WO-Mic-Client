@@ -81,6 +81,8 @@ public:
     int getChannels();
 
     int getAvailableDevices(std::vector<std::wstring> &devices);
+
+    void setClearBufferFlag();
 private:
     void start(WoMicClientCallback callback);
     void stop(WoMicClientCallback callback);
@@ -133,6 +135,7 @@ private:
     std::atomic<int> audioResult;
     std::atomic<bool> doneStart = {false};
     std::atomic<bool> doneStop = {false};
+    std::atomic<bool> clearBufferFlag = {false};
 
     int failCode;
 

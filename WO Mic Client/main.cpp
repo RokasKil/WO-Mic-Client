@@ -6,6 +6,9 @@
 #define _UNICODE
 #endif
 
+#define WINVER 0x0600
+#define _WIN32_WINNT 0x0600
+
 #include "src/client/WoMicClient.h"
 #include <tchar.h>
 #include <windows.h>
@@ -13,6 +16,8 @@
 #include <sstream>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <Shlobj.h>
+#include <Knownfolders.h>
 
 using namespace std;
 using namespace std::placeholders;
@@ -41,27 +46,23 @@ struct State {
 
     HWND hIPAddressText;
     HWND hIPAddress;
-    wstring ipAddress;
+    string ipAddress;
 
     HWND hClientPortText;
     HWND hClientPort;
-    bool clientPortInvalid = false;
     unsigned short clientPort;
 
     HWND hServerPortText;
     HWND hServerPort;
-    bool serverPortInvalid = false;
     unsigned short serverPort;
 
     HWND hCutOffText;
     HWND hCutOff;
-    bool cutOffInvalid = false;
-    float cutOff = 0;
+    float cutOff;
 
     HWND hSpeedOffText;
     HWND hSpeedOff;
-    bool speedOffInvalid = false;
-    float speedOff = 0;
+    float speedOff;
 
     HWND hAutoReconnect;
     bool autoReconnect;
@@ -72,6 +73,7 @@ struct State {
     int failCode = CLIENT_E_OK;
     bool canStart = true;
     bool canStop = false;
+    vector<wstring> devices;
     unique_ptr<WoMicClient> pClient = make_unique<WoMicClient>();
 };
 
@@ -83,6 +85,10 @@ void getDevices(State *pState);
 
 wstring toWStringWithPrecision(const float value, const int n);
 
+wstring getSavePath();
+bool saveSettings(State *pState);
+bool loadSettings(State *pState);
+
 int WINAPI WinMain (HINSTANCE hThisInstance,
                      HINSTANCE hPrevInstance,
                      LPSTR lpszArgument,
@@ -92,7 +98,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     MSG messages;            /* Here messages to the application are saved */
     WNDCLASSEX wincl;        /* Data structure for the windowclass */
     unique_ptr<State> pState = make_unique<State>();
-
+    loadSettings(pState.get());
     /* The Window structure */
     wincl.hInstance = hThisInstance;
     wincl.lpszClassName = szClassName;
@@ -144,6 +150,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
         /* Send message to WindowProcedure */
         DispatchMessage(&messages);
     }
+    wcout << getSavePath();
     /* The program return-value is 0 - The value that PostQuitMessage() gave */
     return messages.wParam;
 }
@@ -174,34 +181,33 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 pState->hWindow = hwnd;
 
                 pState->hDevicesText = CreateWindow(TEXT("STATIC"), TEXT("Device:"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 5, 200, 20, hwnd, (HMENU) 6, pCreateStruct->hInstance, NULL);
-                pState->hDevices = CreateWindow(TEXT("COMBOBOX"), TEXT(""), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 5, 25, 305, 200, hwnd, (HMENU) 7, pCreateStruct->hInstance, NULL);
-                pState->hDevicesRefreshButton = CreateWindow(TEXT("button"), TEXT("Refresh"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 210, 5, 100, 20, hwnd, (HMENU) 19, pCreateStruct->hInstance, NULL);
-
+                pState->hDevices = CreateWindow(TEXT("COMBOBOX"), pState->device.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE, 5, 25, 305, 200, hwnd, (HMENU) 7, pCreateStruct->hInstance, NULL);
+                pState->hDevicesRefreshButton = CreateWindow(TEXT("button"), TEXT("Refresh"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 210, 5, 100, 20, hwnd, (HMENU) 22, pCreateStruct->hInstance, NULL);
 
                 pState->hIPAddressText = CreateWindow(TEXT("STATIC"), TEXT("Address:"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 55, 200, 20, hwnd, (HMENU) 8, pCreateStruct->hInstance, NULL);
-                pState->hIPAddress = CreateWindow(TEXT("EDIT"), NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL, 5, 75, 200, 20, hwnd, (HMENU) 9, pCreateStruct->hInstance, NULL);
+                pState->hIPAddress = CreateWindow(TEXT("EDIT"), wstring(pState->ipAddress.begin(), pState->ipAddress.end()).c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL, 5, 75, 200, 20, hwnd, (HMENU) 9, pCreateStruct->hInstance, NULL);
                 SendMessage(pState->hIPAddress, EM_SETLIMITTEXT, 1024, 0);
 
                 pState->hServerPortText = CreateWindow(TEXT("STATIC"), TEXT("Port:"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 105, 200, 20, hwnd, (HMENU) 10, pCreateStruct->hInstance, NULL);
-                pState->hServerPort = CreateWindow(TEXT("EDIT"), NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_NUMBER, 5, 125, 200, 20, hwnd, (HMENU) 11, pCreateStruct->hInstance, NULL);
+                pState->hServerPort = CreateWindow(TEXT("EDIT"), to_wstring(pState->serverPort).c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_NUMBER, 5, 125, 200, 20, hwnd, (HMENU) 11, pCreateStruct->hInstance, NULL);
                 SendMessage(pState->hServerPort, EM_SETLIMITTEXT, 5, 0);
 
                 pState->hClientPortText = CreateWindow(TEXT("STATIC"), TEXT("UDP server port:"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 155, 200, 20, hwnd, (HMENU) 12, pCreateStruct->hInstance, NULL);
-                pState->hClientPort = CreateWindow(TEXT("EDIT"), NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_NUMBER, 5, 175, 200, 20, hwnd, (HMENU) 13, pCreateStruct->hInstance, NULL);
+                pState->hClientPort = CreateWindow(TEXT("EDIT"), to_wstring(pState->clientPort).c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_NUMBER, 5, 175, 200, 20, hwnd, (HMENU) 13, pCreateStruct->hInstance, NULL);
                 SendMessage(pState->hClientPort, EM_SETLIMITTEXT, 5, 0);
 
                 pState->hCutOffText = CreateWindow(TEXT("STATIC"), TEXT("Cut off in seconds:"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 205, 200, 20, hwnd, (HMENU) 14, pCreateStruct->hInstance, NULL);
-                pState->hCutOff = CreateWindow(TEXT("EDIT"), NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL, 5, 225, 200, 20, hwnd, (HMENU) 15, pCreateStruct->hInstance, NULL);
+                pState->hCutOff = CreateWindow(TEXT("EDIT"), to_wstring(pState->cutOff).c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL, 5, 225, 200, 20, hwnd, (HMENU) 15, pCreateStruct->hInstance, NULL);
                 SendMessage(pState->hCutOff, EM_SETLIMITTEXT, 10, 0);
 
                 pState->hSpeedOffText = CreateWindow(TEXT("STATIC"), TEXT("Speed up in seconds:"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 255, 200, 20, hwnd, (HMENU) 16, pCreateStruct->hInstance, NULL);
-                pState->hSpeedOff = CreateWindow(TEXT("EDIT"), NULL, WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL, 5, 275, 200, 20, hwnd, (HMENU) 17, pCreateStruct->hInstance, NULL);
+                pState->hSpeedOff = CreateWindow(TEXT("EDIT"), to_wstring(pState->speedOff).c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL, 5, 275, 200, 20, hwnd, (HMENU) 17, pCreateStruct->hInstance, NULL);
                 SendMessage(pState->hSpeedOff, EM_SETLIMITTEXT, 10, 0);
 
-                pState->hAutoReconnect = CreateWindow(TEXT("BUTTON"), TEXT("Auto reconnect"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_CHECKBOX, 5, 305, 200, 20, hwnd, (HMENU) 18, pCreateStruct->hInstance, NULL);
-
+                pState->hAutoReconnect = CreateWindow(TEXT("BUTTON"), TEXT("Auto reconnect"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 5, 305, 200, 20, hwnd, (HMENU) 18, pCreateStruct->hInstance, NULL);
+                SendMessage(pState->hAutoReconnect, BM_SETCHECK, pState->autoReconnect ? BST_CHECKED : BST_UNCHECKED, 0);
                 pState->hApplyButton = CreateWindow(TEXT("button"), TEXT("Apply"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 5, 335, 100, 30, hwnd, (HMENU) 19, pCreateStruct->hInstance, NULL);
-                pState->hSaveButton = CreateWindow(TEXT("button"), TEXT("Save"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON | WS_DISABLED, 110, 335, 100, 30, hwnd, (HMENU) 20, pCreateStruct->hInstance, NULL);
+                pState->hSaveButton = CreateWindow(TEXT("button"), TEXT("Save"), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 110, 335, 100, 30, hwnd, (HMENU) 20, pCreateStruct->hInstance, NULL);
 
                 pState->hStatusText = CreateWindow(TEXT("STATIC"), TEXT("status"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 375, 400, 20, hwnd, (HMENU) 3, pCreateStruct->hInstance, NULL);
                 pState->hFailCodeText = CreateWindow(TEXT("STATIC"), TEXT("failcode"), WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 395, 400, 20, hwnd, (HMENU) 4, pCreateStruct->hInstance, NULL);
@@ -214,14 +220,20 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
 
                 SetTimer(hwnd,             // handle to main window
-                    6,            // timer identifier
+                    100,            // timer identifier
                     100,                 // 0.1 second interval
                     (TIMERPROC) NULL);     // no timer callback
-
-                pState->pClient->setIp("192.168.1.114")->setServerPort(8125)->setClientPort(34568)->setDevice(L"")->setCutOff(0.3)->setSpeedOff(0.05)->setAutoReconnect(true)->setFailCallback(bind(clientFailCallback, pState, _1));
+                pState->pClient->setIp(pState->ipAddress)
+                    ->setServerPort(pState->serverPort)
+                    ->setClientPort(pState->clientPort)
+                    ->setDevice(pState->device)
+                    ->setCutOff(pState->cutOff)
+                    ->setSpeedOff(pState->speedOff)
+                    ->setAutoReconnect(pState->autoReconnect)
+                    ->setFailCallback(bind(clientFailCallback, pState, _1));
                 getDevices(pState);
             }
-            return 0;
+            break;
         case WM_COMMAND:
             cout << "WM_COMMAND " << hwnd << " " << HIWORD(wParam) << " " << LOWORD(wParam) << " " << lParam << " " << endl;
             if (HIWORD(wParam) == 0) {
@@ -229,39 +241,139 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     case 1:
                         if (pState->canStart) {
                             pState->canStart = false;
-                            pState->pClient->startAsync(bind(clientStartCallback, pState, _1));
-                            EnableWindow(pState->hStartButton, false);
                             pState->failCode = CLIENT_E_OK;
+                            pState->pClient->startAsync(bind(clientStartCallback, pState, _1));
+                            enableControls(pState);
                         }
                         break;
                     case 2:
                         if (pState->canStop) {
                             pState->canStop = false;
                             pState->pClient->stopAsync(bind(clientStopCallback, pState, _1));
-                            EnableWindow(pState->hStopButton, false);
+                            enableControls(pState);
                         }
                         break;
-                    case 19:
+                    case 19: //apply
+                    case 20: //save
+                        {
+                            int len;
+                            bool error = false;
+                            unique_ptr<wchar_t []> buffer = make_unique<wchar_t[]>(1024);
+                            string address;
+                            wstring device;
+                            int serverPort;
+                            int clientPort;
+                            float cutOff;
+                            float speedOff;
+                            bool autoReconnect;
+                            len = GetWindowText(pState->hIPAddress, buffer.get(), 1024);
+                            for (int i = 0; i < len; i++) {
+                                if (!(buffer[i] == L'.' || buffer[i] == L'-' || (buffer[i] >= L'0' && buffer[i] <= L'9') || (buffer[i] >= L'a' && buffer[i] <= L'z') || (buffer[i] >= L'A' && buffer[i] <= L'Z'))){
+                                    error = true;
+                                    break;
+                                }
+                                else {
+                                    address += static_cast<char>(buffer[i]);
+                                }
+                            }
+                            if (error) {
+                                cout << "errro" << endl;
+                                MessageBox(hwnd, TEXT("Invalid address"), TEXT("Error"), MB_ICONERROR);
+                                break;
+                            }
+
+                            len = GetWindowText(pState->hServerPort, buffer.get(), 1024);
+                            serverPort = _wtoi(buffer.get());
+                            cout << serverPort << endl;
+                            if (serverPort <= 0 || serverPort > 65535) {
+                                cout << "errro" << endl;
+                                MessageBox(hwnd, TEXT("Invalid port must be [1;65535]"), TEXT("Error"), MB_ICONERROR);
+                                break;
+                            }
+
+                            len = GetWindowText(pState->hClientPort, buffer.get(), 1024);
+                            clientPort = _wtoi(buffer.get());
+                            cout << clientPort << endl;
+                            if (clientPort <= 0 || clientPort > 65535) {
+                                cout << "errro" << endl;
+                                MessageBox(hwnd, TEXT("Invalid UDP server port must be [1;65535]"), TEXT("Error"), MB_ICONERROR);
+                                break;
+                            }
+
+                            len = GetWindowText(pState->hCutOff, buffer.get(), 1024);
+                            cutOff = _wtof(buffer.get());
+                            cout << cutOff << endl;
+                            if (cutOff < 0) {
+                                cout << "errro" << endl;
+                                MessageBox(hwnd, TEXT("Cut off value must be 0 or higher"), TEXT("Error"), MB_ICONERROR);
+                                break;
+                            }
+
+                            len = GetWindowText(pState->hSpeedOff, buffer.get(), 1024);
+                            speedOff = _wtof(buffer.get());
+                            cout << speedOff << endl;
+                            if (speedOff < 0) {
+                                cout << "errro" << endl;
+                                MessageBox(hwnd, TEXT("Speed off value must be 0 or higher"), TEXT("Error"), MB_ICONERROR);
+                                break;
+                            }
+
+                            SetWindowText(pState->hCutOff, to_wstring(cutOff).c_str());
+                            SetWindowText(pState->hSpeedOff, to_wstring(speedOff).c_str());
+
+                            autoReconnect = IsDlgButtonChecked(hwnd, 18) == BST_CHECKED;
+                            len = GetWindowText(pState->hDevices, buffer.get(), 1024);
+                            device = wstring(buffer.get());
+                            cout << "validation success";
+                            pState->ipAddress = address;
+                            pState->serverPort = serverPort;
+                            pState->clientPort = clientPort;
+                            pState->device = device;
+                            pState->cutOff = cutOff;
+                            pState->speedOff = speedOff;
+                            pState->autoReconnect = autoReconnect;
+                            pState->pClient
+                                ->setIp(pState->ipAddress)
+                                ->setServerPort(pState->serverPort)
+                                ->setClientPort(pState->clientPort)
+                                ->setDevice(pState->device)
+                                ->setCutOff(pState->cutOff)
+                                ->setSpeedOff(pState->speedOff)
+                                ->setAutoReconnect(pState->autoReconnect);
+                        }
+                        if (LOWORD(wParam) == 20) {
+                            bool result = saveSettings(pState);
+                            if (!result) {
+                                MessageBox(hwnd, TEXT("Failed to save settings"), TEXT("Error"), MB_ICONERROR);
+                            }
+                        }
+                        break;
+                    case 22:
                         getDevices(pState);
+                        break;
+                    case 21:
+                        pState->pClient->setClearBufferFlag();
                         break;
                 }
             }
-            return 0;
+            break;
         case WM_TIMER:
             switch (wParam)
             {
-                case 6:
+                case 100:
                     SetWindowText(pState->hStatusText, (L"Status: " + to_wstring(pState->pClient->getStatus())).c_str());
 
                     SetWindowText(pState->hBufferSizeText, (L"Buffer left: " + toWStringWithPrecision(pState->pClient->bufferLeft(), 3) + L"s (" + to_wstring(pState->pClient->getSamplesInBuffer())+ L" samples)").c_str());
                     break;
             }
-            return 0;
+            break;
         default:                      /* for messages that we don't deal with */
             return DefWindowProc (hwnd, message, wParam, lParam);
     }
 
-    return 0;
+
+
+    return DefWindowProc (hwnd, message, wParam, lParam);
 }
 
 
@@ -305,17 +417,29 @@ void enableControls(State *pState) {
 
 void getDevices(State *pState) {
     vector<wstring> devices;
+    wstring device;
+
+    unique_ptr<wchar_t []> buffer = make_unique<wchar_t[]>(1024);
+    GetWindowText(pState->hDevices, buffer.get(), 1024);
+    device = wstring(buffer.get());
+    if (device == L"") {
+        device = pState->device;
+    }
     int result = pState->pClient->getAvailableDevices(devices);
     cout << "getDevices result " << result << endl << "Got " << devices.size() << " devices" << endl;
     if (result != CLIENT_E_OK) {
         // throw error here
     }
     else {
+        int deviceId = 0;
         SendMessage(pState->hDevices, CB_RESETCONTENT, 0, 0);
-        for (auto it = devices.begin(); it != devices.end(); it++) {
-            SendMessage(pState->hDevices, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>((*it).c_str()));
+        for (size_t i = 0; i < devices.size(); i++) {
+            SendMessage(pState->hDevices, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(devices[i].c_str()));
+            if (devices[i] == device) {
+                deviceId = i;
+            }
         }
-        SendMessage(pState->hDevices, CB_SETCURSEL, 0, 0);
+        SendMessage(pState->hDevices, CB_SETCURSEL, deviceId, 0);
     }
 }
 
@@ -324,4 +448,138 @@ wstring toWStringWithPrecision(const float value, const int n) {
     out.precision(n);
     out << std::fixed << value;
     return out.str();
+}
+
+wstring getSavePath() {
+    PWSTR buffer;
+    HRESULT hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &buffer);
+    if (FAILED(hr)) {
+        return L"";
+    }
+    else {
+        wstring result = wstring(buffer) + L"\\Wireless Mic";
+        CoTaskMemFree(buffer);
+        return result;
+    }
+}
+
+bool loadSettings(State *pState) {
+    HANDLE hFile = CreateFile(wstring(getSavePath() + L"\\settings.dat").c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        cout << "Failed to open settings file: " << GetLastError() << endl;
+        goto loadSettings_loadDefault;
+    }
+    else {
+        size_t bufferSize = sizeof(unsigned short) * 2 + sizeof(float) * 2 + sizeof(bool) + sizeof(size_t);
+        unique_ptr<char []> buffer = make_unique<char[]>(bufferSize);
+        int pos = 0;
+        DWORD read;
+        bool result;
+        size_t length = 0;
+        result = ReadFile(hFile, buffer.get(), bufferSize, &read, NULL);
+        if (!result || read != bufferSize) {
+            cout << "Failed to read settings file1: " << GetLastError() << endl;
+            goto loadSettings_loadDefault;
+        }
+        pState->clientPort = *((unsigned short*)(buffer.get() + pos));
+        pos += sizeof(unsigned short);
+
+        pState->serverPort = *((unsigned short*)(buffer.get() + pos));
+        pos += sizeof(unsigned short);
+
+        pState->cutOff = *((float*)(buffer.get() + pos));
+        pos += sizeof(float);
+
+        pState->speedOff = *((float*)(buffer.get() + pos));
+        pos += sizeof(float);
+
+        pState->autoReconnect = *((bool*)(buffer.get() + pos));
+        pos += sizeof(bool);
+
+        length = *((size_t*)(buffer.get() + pos));
+
+        buffer = make_unique<char[]>(length);
+        result = ReadFile(hFile, buffer.get(), length, &read, NULL);
+        if (!result || read != length) {
+            cout << "Failed to read settings file2: " << GetLastError() << endl;
+            goto loadSettings_loadDefault;
+        }
+        pState->device = wstring(reinterpret_cast<wchar_t*>(buffer.get()), length / 2);
+        wcout << "loaded " << pState->device << endl;
+
+        buffer = make_unique<char[]>(sizeof(size_t));
+        result = ReadFile(hFile, buffer.get(), sizeof(size_t), &read, NULL);
+        if (!result || read != sizeof(size_t)) {
+            cout << "Failed to read settings file3: " << GetLastError() << endl;
+            goto loadSettings_loadDefault;
+        }
+        length = *((size_t*)buffer.get());
+        buffer = make_unique<char[]>(length);
+        result = ReadFile(hFile, buffer.get(), length, &read, NULL);
+        if (!result || read != length) {
+            cout << "Failed to read settings file4: " << GetLastError() << endl;
+            goto loadSettings_loadDefault;
+        }
+        pState->ipAddress = string(buffer.get(), length);
+        CloseHandle(hFile);
+    }
+    return true;
+    loadSettings_loadDefault:
+    if (hFile != INVALID_HANDLE_VALUE) {
+        CloseHandle(hFile);
+    }
+    pState->device = L"";
+    pState->ipAddress = "";
+    pState->clientPort = 34568;
+    pState->serverPort = 8125;
+    pState->cutOff = 0.3;
+    pState->speedOff = 0.05;
+    pState->autoReconnect = true;
+    saveSettings(pState);
+    return false;
+}
+
+bool saveSettings(State *pState) {
+    DWORD dirAttr = GetFileAttributes(getSavePath().c_str());
+    if (dirAttr == INVALID_FILE_ATTRIBUTES) {
+        int result = SHCreateDirectoryEx(NULL, getSavePath().c_str(), NULL);
+        if (result != ERROR_SUCCESS) {
+            return false;
+        }
+    }
+
+    HANDLE hFile = CreateFile(wstring(getSavePath() + L"\\settings.dat").c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        wcout << "Failed to open settings file for writing:" << wstring(getSavePath() + L"\\settings.dat").c_str() << " " << GetLastError() << endl;
+        return false;
+    }
+
+    unique_ptr<unsigned char []> buffer = make_unique<unsigned char[]>(max(max(sizeof(float), sizeof(unsigned short)), sizeof(size_t)));
+    int result = 0;
+    *((unsigned short*)buffer.get()) = pState->clientPort;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->clientPort), NULL, NULL);
+
+    *((unsigned short*)buffer.get()) = pState->serverPort;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->serverPort), NULL, NULL);
+
+    *((float*)buffer.get()) = pState->cutOff;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->cutOff), NULL, NULL);
+
+    *((float*)buffer.get()) = pState->speedOff;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->speedOff), NULL, NULL);
+
+    *((bool*)buffer.get()) = pState->autoReconnect;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->autoReconnect), NULL, NULL);
+
+    *((size_t*)buffer.get()) = pState->device.size() * 2;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->device.size()), NULL, NULL);
+    result += WriteFile(hFile, pState->device.c_str(), pState->device.size() * 2, NULL, NULL);
+
+    *((size_t*)buffer.get()) = pState->ipAddress.size();
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->ipAddress.size()), NULL, NULL);
+    result += WriteFile(hFile, pState->ipAddress.c_str(), pState->ipAddress.size(), NULL, NULL);
+
+    CloseHandle(hFile);
+
+    return result == 9;
 }

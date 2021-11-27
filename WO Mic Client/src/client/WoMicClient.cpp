@@ -525,7 +525,6 @@ int WoMicClient::openAudioDevice() {
 }
 
 int WoMicClient::startAudio() {
-    int result;
     HRESULT hr;
     REFERENCE_TIME hnsRequestedDuration = 0;
     IMMDeviceEnumerator *pEnumerator = NULL;
@@ -597,7 +596,7 @@ int WoMicClient::startAudio() {
             audioResult = CLIENT_E_DEVICE_GETPROP;
             goto audioStart_Exit;
         }
-        found = wstring(varName.pwszVal) == L"Line 1 (Virtual Audio Cable)";
+        found = wstring(varName.pwszVal) == device;
         PropVariantClear(&varName);
         if (found) {
             break;
@@ -880,7 +879,7 @@ int WoMicClient::audioDeviceLoop(IAudioClient *pAudioClient) {
         memcpy(pData, preloaded.get(), preloadedLen * 2);
         for (unsigned int i = preloadedLen; i < min(buffered, bufferFrameCount * channels) ; i++) {
             *(short*)(pData + i * 2) = (audioQueue.pop());
-            if (buffered - min(buffered, bufferFrameCount * channels) > sampleRate * speedOff && ++speed % 100 == 0) {
+            if (speedOff != 0 && buffered - min(buffered, bufferFrameCount * channels) > sampleRate * speedOff && ++speed % 100 == 0) {
                 audioQueue.pop();
                 speed = 0;
             }
@@ -901,12 +900,13 @@ int WoMicClient::audioDeviceLoop(IAudioClient *pAudioClient) {
         preloadedLen = min(buffered, bufferFrameCount * channels);
         for (unsigned int i = 0; i < preloadedLen; i++) { // Preload the next packet
             *(short*)(preloaded.get() + i * 2) = (audioQueue.pop());
-            if (buffered - preloadedLen > sampleRate * speedOff && ++speed % 100 == 0) {
+            if (speedOff != 0 && buffered - preloadedLen > sampleRate * speedOff && ++speed % 100 == 0) {
                 audioQueue.pop();
                 speed = 0;
             }
         }
-        if (((long long)(audioQueue.was_size()) - bufferFrameCount * channels) > sampleRate * cutOff) {
+        if ( (cutOff != 0 && ((long long)(audioQueue.was_size()) - bufferFrameCount * channels) > sampleRate * cutOff) || clearBufferFlag) {
+            clearBufferFlag = false;
             purgeAudioQueue(bufferFrameCount * channels);
         }
     }
@@ -1052,5 +1052,10 @@ int WoMicClient::getSampleRate() {
 int WoMicClient::getChannels() {
     return channels;
 }
+
+void WoMicClient::setClearBufferFlag() {
+    clearBufferFlag = true;
+}
+
 
 
