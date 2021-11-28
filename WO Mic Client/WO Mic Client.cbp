@@ -33,6 +33,8 @@
 			<Add directory="../libs/include" />
 		</Compiler>
 		<Linker>
+			<Add option="-static-libstdc++" />
+			<Add option="-static-libgcc" />
 			<Add library="gdi32" />
 			<Add library="user32" />
 			<Add library="kernel32" />
@@ -48,6 +50,10 @@
 		<Unit filename="src/client/ClientDefines.h" />
 		<Unit filename="src/client/WoMicClient.cpp" />
 		<Unit filename="src/client/WoMicClient.h" />
+		<Unit filename="src/resource/resources.h" />
+		<Unit filename="src/resource/resources.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>

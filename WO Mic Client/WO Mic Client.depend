@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1638015959 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
+1638101433 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
 	"src/client/WoMicClient.h"
 	<tchar.h>
 	<windows.h>
@@ -9,8 +9,9 @@
 	<commctrl.h>
 	<Shlobj.h>
 	<Knownfolders.h>
+	"src/resource/resources.h"
 
-1638011054 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
+1638102415 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.cpp
 	"WoMicClient.h"
 
 1637856360 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\womicclient.h
@@ -47,7 +48,7 @@
 	<atomic>
 	<emmintrin.h>
 
-1637701442 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\clientdefines.h
+1638088401 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\client\clientdefines.h
 
 1554936451 d:\mif\7semestras\winapi\wo-mic-client\libs\include\opus.h
 	"opus_types.h"
@@ -62,4 +63,12 @@
 
 1554936451 d:\mif\7semestras\winapi\wo-mic-client\libs\include\opus_defines.h
 	"opus_types.h"
+
+1638087549 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\stringtable1.rc
+
+1638101597 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\resource\resources.rc
+	"../client/ClientDefines.h"
+	"resources.h"
+
+1638099478 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\resource\resources.h
 

@@ -1,0 +1,106 @@
+#include "../client/ClientDefines.h"
+#include "resources.h"
+
+STRINGTABLE DISCARDABLE
+{
+    CLIENT_E_NONE, L"No error"
+    CLIENT_E_INVALIDSTATE, L"Invalid state"
+    CLIENT_E_OK, L"OK"
+    //CLIENT_E_WSASTARTUP, L"Failed to initialize WSA"
+    CLIENT_E_GETADDRINFO, L"Failed to resolve address"
+    CLIENT_E_CONNECTSOCKET, L"Failed to open socket for connecting"
+    CLIENT_E_CONNECT, L"Failed to connect"
+
+    CLIENT_E_SEND_CHECKVERSION_0, L"Handshake failure on version check (S:0)"
+    CLIENT_E_SEND_CHECKVERSION_1, L"Handshake failure on version check (S:1)"
+    CLIENT_E_RECV_CHECKVERSION_0, L"Handshake failure on version check (R:0)"
+    CLIENT_E_RECV_CHECKVERSION_1, L"Handshake failure on version check (R:1)"
+    CLIENT_E_RECV_CHECKVERSION_2, L"Handshake failure on version check (R:2)"
+
+    CLIENT_E_SEND_SETCODEC_0, L"Handshake failure on setting codec (S:0)"
+    CLIENT_E_SEND_SETCODEC_1, L"Handshake failure on setting codec (S:1)"
+    CLIENT_E_RECV_SETCODEC_0, L"Handshake failure on setting codec (R:0)"
+    CLIENT_E_RECV_SETCODEC_1, L"Handshake failure on setting codec (R:1)"
+    CLIENT_E_RECV_SETCODEC_2, L"Handshake failure on setting codec (R:2)"
+
+    CLIENT_E_SEND_START_0, L"Handshake failure on sending start command (S:0)"
+    CLIENT_E_SEND_START_1, L"Handshake failure on sending start command (S:1)"
+    CLIENT_E_RECV_START_0, L"Handshake failure on sending start command (R:0)"
+    CLIENT_E_RECV_START_1, L"Handshake failure on sending start command (R:1)"
+    CLIENT_E_RECV_START_2, L"Handshake failure on sending start command (R:2)"
+
+    CLIENT_E_UDP_SOCKET, L"Failed to create UDP server socket"
+    CLIENT_E_UDP_BIND, L"Failed to bind UDP server socket"
+    CLIENT_E_UDP_RECV, L"Failed on UDP server recieve"
+
+    CLIENT_E_SEND_PING_0, L"Failed to ping the server (0)"
+    CLIENT_E_SEND_PING_1, L"Failed to ping the server (1)"
+
+    CLIENT_E_RECONNECTSTATE, L"Reconnect state changed"
+
+    CLIENT_E_OPUSDECODER, L"Failed to initialize opus decoder"
+
+    CLIENT_E_DEVICE_FORMAT, L"Audio device format not supported.\nMust support 48000Hz sample rate, 1 channel, exclusive mode."
+    CLIENT_E_DEVICE_TIMEOUT, L"Audio device timed out"
+    CLIENT_E_DEVICE_COMINIT, L"Failed to initialize COM"
+    CLIENT_E_DEVICE_CREATEENUMERATOR, L"Failed to create audio device enumerator"
+    CLIENT_E_DEVICE_ENUMAUDIO, L"Failed to enumerate audio devices"
+    CLIENT_E_DEVICE_COUNTAUDIO, L"Failed to get audio device count"
+    CLIENT_E_DEVICE_GETAUDIO, L"Failed to get audio device, while iterating"
+    CLIENT_E_DEVICE_OPENPROP, L"Failed to get audio device properties, while iterating"
+    CLIENT_E_DEVICE_NOTFOUND, L"Specified audio device is not found.\nCheck if it's connected."
+    CLIENT_E_DEVICE_INITIALIZE, L"Failed to initialize audio device"
+    CLIENT_E_DEVICE_SETEVENT, L"Failed to set audio device event callback"
+    CLIENT_E_DEVICE_PERIOD, L"Failed to get audio device period"
+    CLIENT_E_DEVICE_GETPROP, L"Failed to get audio device name"
+    CLIENT_E_DEVICE_ACTIVATE, L"Failed to activate audio device"
+    CLIENT_E_DEVICE_GETBUFFERSIZEREALIGN, L"Failed to get buffer size for realignment"
+    CLIENT_E_DEVICE_EVENT, L"Failed to create event for audio device"
+    CLIENT_E_DEVICE_GETBUFFERSIZE, L"Failed to get audio buffer size"
+    CLIENT_E_DEVICE_RENDER, L"Failed to get audio device renderer"
+    CLIENT_E_DEVICE_START, L"Failed to start audio device renderer"
+    CLIENT_E_DEVICE_GETBUFFER, L"Failed to audio device buffer"
+    CLIENT_E_DEVICE_RELEASEBUFFER, L"Failed to release audio device buffer"
+
+    IDS_APP_NAME, L"Wireless Mic - WO Mic Client"
+    IDS_WAITING, L"Waiting"
+    IDS_CONNECTING, L"Connecting"
+    IDS_CONNECTED, L"Connected"
+    IDS_RECONNECTING, L"Reconnecting"
+    IDS_STOPPING, L"Stopping"
+    IDS_FAILED, L"Failed"
+
+    IDS_DEVICE, L"Device:"
+    IDS_ADDRESS, L"Address:"
+    IDS_CLIENT_PORT, L"Port:"
+    IDS_SERVER_PORT, L"UDP server port:"
+    IDS_CUTOFF, L"Cut off mark (seconds):"
+    IDS_SPEEDOFF, L"Speed up mark (seconds):"
+    IDS_AUTORECONNECT, L"Auto reconnect"
+    IDS_APPLY, L"Apply"
+    IDS_SAVE, L"Save"
+    IDS_DEFAULT, L"Default"
+
+    IDS_STATUS, L"Status: "
+    IDS_BUFFER_LEFT, L"Buffer left: "
+    IDS_SAMPLES, L"samples"
+
+    IDS_CLEAR_BUFFER, L"Clear buffer"
+    IDS_START, L"Start"
+    IDS_STOP, L"Stop"
+
+    IDS_ERROR, L"Error"
+    IDS_ERROR_CODE, L"Error code: "
+
+    IDS_VALIDATE_ADDRESS, L"Invalid address"
+    IDS_VALIDATE_CLIENT_PORT, L"Invalid port must be [1;65535]"
+    IDS_VALIDATE_SERVER_PORT, L"Invalid UDP server port must be [1;65535]"
+    IDS_VALIDATE_CUTOFF, L"Cut off value must be 0 or higher"
+    IDS_VALIDATE_SPEEDOFF, L"Speed off value must be 0 or higher"
+
+    IDS_SAVE_FAILED, L"Failed to save settings"
+}
+
+IDI_APP ICON DISCARDABLE "../../img/icon.ico"
+
+IDI_REFRESH ICON DISCARDABLE "../../img/refresh.ico"

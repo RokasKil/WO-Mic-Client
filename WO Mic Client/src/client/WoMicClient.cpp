@@ -8,6 +8,15 @@ WoMicClient::WoMicClient() {
 
 WoMicClient::~WoMicClient() {
     stop();
+
+	if (stopThread != NULL && stopThread->joinable() ) {
+        stopThread->join();
+        stopThread = NULL;
+	}
+	if (startThread != NULL && startThread->joinable() ) {
+        startThread->join();
+        startThread = NULL;
+	}
     if(wsaInitialized) {
         WSACleanup();
     }
@@ -959,6 +968,12 @@ int WoMicClient::stop() {
     closeAudioDevice();
     cout << "destroyOpusRecorder" << endl;
     destroyOpusRecorder();
+
+    cout << "join reconnectThread" << endl;
+	if (reconnectThread != NULL && reconnectThread->joinable() ) {
+        reconnectThread->join();
+        reconnectThread = NULL;
+	}
     cout << "stopped" << endl;
     if (status == STOPPING) {
         status = WAITING;
