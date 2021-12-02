@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1638101433 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
+1638475106 source:d:\mif\7semestras\winapi\wo-mic-client\wo mic client\main.cpp
 	"src/client/WoMicClient.h"
 	<tchar.h>
 	<windows.h>

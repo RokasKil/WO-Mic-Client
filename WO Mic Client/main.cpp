@@ -135,14 +135,14 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     rect.left = 0;
     rect.bottom = 420;
     rect.right = 320;
-    AdjustWindowRect(  &rect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, false);
+    AdjustWindowRect(  &rect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, false);
     cout << rect.top << " " << rect.left << " "<< rect.bottom << " "<< rect.right << endl;
     /* The class is registered, let's create the program*/
     hwnd = CreateWindowEx (
            0,                   /* Extended possibilites for variation */
            szClassName,         /* Classname */
            getString(IDS_APP_NAME).c_str(),       /* Title Text */
-           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, /* default window */
+           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, /* window style*/
            CW_USEDEFAULT,       /* Windows decides the position */
            CW_USEDEFAULT,       /* where the window ends up on the screen */
            rect.right - rect.left,                 /* The programs width */
