@@ -66,6 +66,12 @@ struct State {
     HWND hAutoReconnect;
     bool autoReconnect;
 
+    HWND hConnectOnStartup;
+    bool connectOnStartup;
+
+    HWND hNotifyAutoReconnect;
+    bool notifyAutoReconnect;
+
     HWND hApplyButton;
     HWND hSaveButton;
     HWND hDefaultButton;
@@ -133,7 +139,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     RECT rect;
     rect.top = 0;
     rect.left = 0;
-    rect.bottom = 420;
+    rect.bottom = 470;
     rect.right = 320;
     AdjustWindowRect(  &rect, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, false);
     cout << rect.top << " " << rect.left << " "<< rect.bottom << " "<< rect.right << endl;
@@ -229,18 +235,20 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 SendMessage(pState->hSpeedOff, EM_SETLIMITTEXT, 10, 0);
 
                 pState->hAutoReconnect = CreateWindow(TEXT("BUTTON"), getString(IDS_AUTORECONNECT).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 5, 280, 310, 20, hwnd, (HMENU) ID_BUTTON_AUTORECONNECT, pCreateStruct->hInstance, NULL);
+                pState->hConnectOnStartup = CreateWindow(TEXT("BUTTON"), getString(IDS_CONNECTONSTARTUP).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 5, 305, 310, 20, hwnd, (HMENU) ID_BUTTON_CONNECTONSTARTUP, pCreateStruct->hInstance, NULL);
+                pState->hNotifyAutoReconnect = CreateWindow(TEXT("BUTTON"), getString(IDS_NOTIFYAUTORECONNECT).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX, 5, 330, 310, 20, hwnd, (HMENU) ID_BUTTON_NOTIFYAUTORECONNECT, pCreateStruct->hInstance, NULL);
 
-                pState->hApplyButton = CreateWindow(TEXT("button"), getString(IDS_APPLY).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 5, 305, 100, 30, hwnd, (HMENU) ID_BUTTON_APPLY, pCreateStruct->hInstance, NULL);
-                pState->hSaveButton = CreateWindow(TEXT("button"), getString(IDS_SAVE).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 110, 305, 100, 30, hwnd, (HMENU) ID_BUTTON_SAVE, pCreateStruct->hInstance, NULL);
-                pState->hDefaultButton = CreateWindow(TEXT("button"), getString(IDS_DEFAULT).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 215, 305, 100, 30, hwnd, (HMENU) ID_BUTTON_DEFAULT, pCreateStruct->hInstance, NULL);
+                pState->hApplyButton = CreateWindow(TEXT("button"), getString(IDS_APPLY).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 5, 355, 100, 30, hwnd, (HMENU) ID_BUTTON_APPLY, pCreateStruct->hInstance, NULL);
+                pState->hSaveButton = CreateWindow(TEXT("button"), getString(IDS_SAVE).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 110, 355, 100, 30, hwnd, (HMENU) ID_BUTTON_SAVE, pCreateStruct->hInstance, NULL);
+                pState->hDefaultButton = CreateWindow(TEXT("button"), getString(IDS_DEFAULT).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 215, 355, 100, 30, hwnd, (HMENU) ID_BUTTON_DEFAULT, pCreateStruct->hInstance, NULL);
 
-                pState->hStatusText = CreateWindow(TEXT("STATIC"), NULL, WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 340, 310, 20, hwnd, NULL, pCreateStruct->hInstance, NULL);
-                pState->hBufferSizeText = CreateWindow(TEXT("STATIC"), NULL, WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 360, 310, 20, hwnd, NULL, pCreateStruct->hInstance, NULL);
+                pState->hStatusText = CreateWindow(TEXT("STATIC"), NULL, WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 390, 310, 20, hwnd, NULL, pCreateStruct->hInstance, NULL);
+                pState->hBufferSizeText = CreateWindow(TEXT("STATIC"), NULL, WS_VISIBLE | WS_CHILD | SS_LEFTNOWORDWRAP, 5, 410, 310, 20, hwnd, NULL, pCreateStruct->hInstance, NULL);
 
-                pState->hClearBufferButton = CreateWindow(TEXT("button"), getString(IDS_CLEAR_BUFFER).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 5, 385, 100, 30, hwnd, (HMENU) ID_BUTTON_CLEAR_BUFFER, pCreateStruct->hInstance, NULL);
+                pState->hClearBufferButton = CreateWindow(TEXT("button"), getString(IDS_CLEAR_BUFFER).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 5, 435, 100, 30, hwnd, (HMENU) ID_BUTTON_CLEAR_BUFFER, pCreateStruct->hInstance, NULL);
 
-                pState->hStartButton = CreateWindow(TEXT("button"), getString(IDS_START).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 110, 385, 100, 30, hwnd, (HMENU) ID_BUTTON_START, pCreateStruct->hInstance, NULL);
-                pState->hStopButton = CreateWindow(TEXT("button"), getString(IDS_STOP).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON | WS_DISABLED, 215, 385, 100, 30, hwnd, (HMENU) ID_BUTTON_STOP, pCreateStruct->hInstance, NULL);
+                pState->hStartButton = CreateWindow(TEXT("button"), getString(IDS_START).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 110, 435, 100, 30, hwnd, (HMENU) ID_BUTTON_START, pCreateStruct->hInstance, NULL);
+                pState->hStopButton = CreateWindow(TEXT("button"), getString(IDS_STOP).c_str(), WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON | WS_DISABLED, 215, 435, 100, 30, hwnd, (HMENU) ID_BUTTON_STOP, pCreateStruct->hInstance, NULL);
 
 
                 SetTimer(hwnd,             // handle to main window
@@ -250,6 +258,12 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 loadSettingsToUI(pState);
                 setSettings(pState)->setFailCallback(bind(clientFailCallback, pState, _1));
                 getDevices(pState);
+                if (pState->connectOnStartup) {
+                    pState->canStart = false;
+                    pState->failCode = CLIENT_E_OK;
+                    pState->pClient->startAsync(bind(clientStartCallback, pState, _1), true);
+                    enableControls(pState);
+                }
             }
             break;
         case WM_COMMAND:
@@ -268,6 +282,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                             pState->canStop = false;
                             pState->pClient->stopAsync(bind(clientStopCallback, pState, _1));
                             enableControls(pState);
+                            KillTimer(pState->hWindow, ID_TIMERRECONNECTNOTIFY);
                         }
                         break;
                     case ID_BUTTON_APPLY: //apply
@@ -283,6 +298,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                             float cutOff;
                             float speedOff;
                             bool autoReconnect;
+                            bool connectOnStartup;
+                            bool notifyAutoReconnect;
                             len = GetWindowText(pState->hIPAddress, buffer.get(), 1024);
                             for (int i = 0; i < len; i++) {
                                 if (!(buffer[i] == L'.' || buffer[i] == L'-' || (buffer[i] >= L'0' && buffer[i] <= L'9') || (buffer[i] >= L'a' && buffer[i] <= L'z') || (buffer[i] >= L'A' && buffer[i] <= L'Z'))){
@@ -336,6 +353,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                             }
 
                             autoReconnect = IsDlgButtonChecked(hwnd, ID_BUTTON_AUTORECONNECT) == BST_CHECKED;
+                            connectOnStartup = IsDlgButtonChecked(hwnd, ID_BUTTON_CONNECTONSTARTUP) == BST_CHECKED;
+                            notifyAutoReconnect = IsDlgButtonChecked(hwnd, ID_BUTTON_NOTIFYAUTORECONNECT) == BST_CHECKED;
                             len = GetWindowText(pState->hDevices, buffer.get(), 1024);
                             device = wstring(buffer.get());
                             cout << "validation success " << autoReconnect << endl;
@@ -346,6 +365,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                             pState->cutOff = cutOff;
                             pState->speedOff = speedOff;
                             pState->autoReconnect = autoReconnect;
+                            pState->connectOnStartup = connectOnStartup;
+                            pState->notifyAutoReconnect = notifyAutoReconnect;
                             loadSettingsToUI(pState);
                             setSettings(pState);
                         }
@@ -378,6 +399,15 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     SetWindowText(pState->hStatusText, (getString(IDS_STATUS) + getString(IDS_WAITING + pState->pClient->getStatus())).c_str());
 
                     SetWindowText(pState->hBufferSizeText, (getString(IDS_BUFFER_LEFT) + toWStringWithPrecision(pState->pClient->bufferLeft(), 3) + L"s (" + to_wstring(pState->pClient->getSamplesInBuffer()) + L" " + getString(IDS_SAMPLES)+ L")").c_str());
+                    break;
+                case ID_TIMERRECONNECTNOTIFY:
+                    if (pState->pClient->getStatus() == RECONNECTING) {
+                        FlashWindow(pState->hWindow, true);
+                        MessageBeep(MB_ICONERROR);
+                    }
+                    else {
+                        KillTimer(pState->hWindow, ID_TIMERRECONNECTNOTIFY);
+                    }
                     break;
             }
             break;
@@ -414,12 +444,22 @@ void clientStopCallback(State *pState, int status) {
 
 void clientFailCallback(State *pState, int status) {
     cout << "fail callback " << status << " " << pState << endl;
-
-    pState->canStart = true;
-    pState->canStop = false;
-    enableControls(pState);
-    pState->failCode = status;
-    MessageBox(pState->hWindow, (getString(IDS_ERROR_CODE) + to_wstring(status) + L"\n" + getString(status)).c_str(), (getString(IDS_APP_NAME) + L" " + getString(IDS_ERROR)).c_str(), MB_ICONERROR);
+    if (status == CLIENT_RECONNECT) {
+        SetTimer(pState->hWindow,             // handle to main window
+            ID_TIMERRECONNECTNOTIFY,            // timer identifier
+            30000,                 // 30 second interval
+            (TIMERPROC) NULL
+        );     // no timer callback
+        FlashWindow(pState->hWindow, true);
+        MessageBeep(MB_ICONERROR);
+    } else {
+        pState->canStart = true;
+        pState->canStop = false;
+        enableControls(pState);
+        pState->failCode = status;
+        MessageBox(pState->hWindow, (getString(IDS_ERROR_CODE) + to_wstring(status) + L"\n" + getString(status)).c_str(), (getString(IDS_APP_NAME) + L" " + getString(IDS_ERROR)).c_str(), MB_ICONERROR);
+        KillTimer(pState->hWindow, ID_TIMERRECONNECTNOTIFY);
+    }
 }
 
 void enableControls(State *pState) {
@@ -487,7 +527,7 @@ bool loadSettings(State *pState) {
         goto loadSettings_loadDefault;
     }
     else {
-        size_t bufferSize = sizeof(unsigned short) * 2 + sizeof(float) * 2 + sizeof(bool) + sizeof(size_t);
+        size_t bufferSize = sizeof(unsigned short) * 2 + sizeof(float) * 2 + sizeof(bool) * 3 + sizeof(size_t);
         unique_ptr<char []> buffer = make_unique<char[]>(bufferSize);
         int pos = 0;
         DWORD read;
@@ -511,6 +551,12 @@ bool loadSettings(State *pState) {
         pos += sizeof(float);
 
         pState->autoReconnect = *((bool*)(buffer.get() + pos));
+        pos += sizeof(bool);
+
+        pState->connectOnStartup = *((bool*)(buffer.get() + pos));
+        pos += sizeof(bool);
+
+        pState->notifyAutoReconnect = *((bool*)(buffer.get() + pos));
         pos += sizeof(bool);
 
         length = *((size_t*)(buffer.get() + pos));
@@ -582,6 +628,12 @@ bool saveSettings(State *pState) {
     *((bool*)buffer.get()) = pState->autoReconnect;
     result += WriteFile(hFile, buffer.get(), sizeof(pState->autoReconnect), NULL, NULL);
 
+    *((bool*)buffer.get()) = pState->connectOnStartup;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->connectOnStartup), NULL, NULL);
+
+    *((bool*)buffer.get()) = pState->notifyAutoReconnect;
+    result += WriteFile(hFile, buffer.get(), sizeof(pState->notifyAutoReconnect), NULL, NULL);
+
     *((size_t*)buffer.get()) = pState->device.size() * 2;
     result += WriteFile(hFile, buffer.get(), sizeof(pState->device.size()), NULL, NULL);
     result += WriteFile(hFile, pState->device.c_str(), pState->device.size() * 2, NULL, NULL);
@@ -592,7 +644,7 @@ bool saveSettings(State *pState) {
 
     CloseHandle(hFile);
 
-    return result == 9;
+    return result == 11;
 }
 
 void defaultSettings(State *pState) {
@@ -603,6 +655,8 @@ void defaultSettings(State *pState) {
     pState->cutOff = 0.3;
     pState->speedOff = 0.05;
     pState->autoReconnect = true;
+    pState->connectOnStartup = false;
+    pState->notifyAutoReconnect = true;
 }
 
 WoMicClient* setSettings(State *pState) {
@@ -623,6 +677,8 @@ void loadSettingsToUI(State *pState) {
     SetWindowText(pState->hCutOff, to_wstring(pState->cutOff).c_str());
     SetWindowText(pState->hSpeedOff, to_wstring(pState->speedOff).c_str());
     SendMessage(pState->hAutoReconnect, BM_SETCHECK, pState->autoReconnect ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(pState->hConnectOnStartup, BM_SETCHECK, pState->connectOnStartup ? BST_CHECKED : BST_UNCHECKED, 0);
+    SendMessage(pState->hNotifyAutoReconnect, BM_SETCHECK, pState->notifyAutoReconnect ? BST_CHECKED : BST_UNCHECKED, 0);
 }
 
 wstring getString(UINT id) {

@@ -72,3 +72,74 @@
 
 1638099478 d:\mif\7semestras\winapi\wo-mic-client\wo mic client\src\resource\resources.h
 
+1649605565 source:d:\mif\7semestras\winapi\wo-mic-client-main\wo mic client\src\client\womicclient.cpp
+	"WoMicClient.h"
+
+1649605487 d:\mif\7semestras\winapi\wo-mic-client-main\wo mic client\src\client\womicclient.h
+	<winsock2.h>
+	<windows.h>
+	<ws2tcpip.h>
+	<string>
+	<atomic_queue/atomic_queue.h>
+	<iostream>
+	<thread>
+	"ClientDefines.h"
+	<opus.h>
+	<Audioclient.h>
+	<mmdeviceapi.h>
+	<setupapi.h>
+	<initguid.h>
+	<devpkey.h>
+	<Functiondiscoverykeys_devpkey.h>
+	<chrono>
+	<functional>
+	<vector>
+
+1640241945 d:\mif\7semestras\winapi\wo-mic-client-main\libs\include\atomic_queue\atomic_queue.h
+	"defs.h"
+	<algorithm>
+	<cassert>
+	<cstddef>
+	<cstdint>
+	<memory>
+	<type_traits>
+	<utility>
+
+1640241945 d:\mif\7semestras\winapi\wo-mic-client-main\libs\include\atomic_queue\defs.h
+	<atomic>
+	<emmintrin.h>
+
+1649604454 d:\mif\7semestras\winapi\wo-mic-client-main\wo mic client\src\client\clientdefines.h
+
+1640241945 d:\mif\7semestras\winapi\wo-mic-client-main\libs\include\opus.h
+	"opus_types.h"
+	"opus_defines.h"
+
+1640241945 d:\mif\7semestras\winapi\wo-mic-client-main\libs\include\opus_types.h
+	<stdint.h>
+	<_G_config.h>
+	<sys/types.h>
+	<sys/types.h>
+	<inttypes.h>
+
+1640241945 d:\mif\7semestras\winapi\wo-mic-client-main\libs\include\opus_defines.h
+	"opus_types.h"
+
+1649603811 source:d:\mif\7semestras\winapi\wo-mic-client-main\wo mic client\src\resource\resources.rc
+	"../client/ClientDefines.h"
+	"resources.h"
+
+1649605627 d:\mif\7semestras\winapi\wo-mic-client-main\wo mic client\src\resource\resources.h
+
+1649605512 source:d:\mif\7semestras\winapi\wo-mic-client-main\wo mic client\main.cpp
+	"src/client/WoMicClient.h"
+	<tchar.h>
+	<windows.h>
+	<functional>
+	<sstream>
+	<windowsx.h>
+	<commctrl.h>
+	<Shlobj.h>
+	<Knownfolders.h>
+	"src/resource/resources.h"
+

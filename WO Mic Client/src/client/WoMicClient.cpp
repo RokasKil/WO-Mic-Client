@@ -23,11 +23,26 @@ WoMicClient::~WoMicClient() {
 }
 
 int WoMicClient::start() {
+        return this->start(false);
+}
+int WoMicClient::start(bool reconnect) {
     int result;
     if (status == WAITING || status == FAILED) {
         status = CONNECTING;
-        if ((result = initOpusRecorder()) == CLIENT_E_OK && (result = openAudioDevice()) == CLIENT_E_OK && (result = connect()) == CLIENT_E_OK ) {
-            status = CONNECTED;
+        if ((result = initOpusRecorder()) == CLIENT_E_OK && (result = openAudioDevice()) == CLIENT_E_OK) {
+            if ((result = connect()) == CLIENT_E_OK ) {
+                status = CONNECTED;
+            }
+            else {
+                if (reconnect == true) {
+                    this->reconnectAsync();
+                    return CLIENT_E_OK;
+                }
+                else {
+                    status = FAILED;
+                    stop();
+                }
+            }
         }
         else {
             status = FAILED;
@@ -39,13 +54,16 @@ int WoMicClient::start() {
 }
 
 int WoMicClient::startAsync(WoMicClientCallback callback) {
+    startAsync(callback, false);
+}
+int WoMicClient::startAsync(WoMicClientCallback callback, bool reconnect) {
     if (doneStart) {
         startThread->join();
         startThread = NULL;
         doneStart = false;
     }
     if (startThread == NULL) {
-        startThread = make_unique<thread>(static_cast<void (WoMicClient::*)(WoMicClientCallback)>(&WoMicClient::start), this, callback);
+        startThread = make_unique<thread>(static_cast<void (WoMicClient::*)(WoMicClientCallback, bool)>(&WoMicClient::start), this, callback, reconnect);
         return CLIENT_E_OK;
     }
     else {
@@ -77,8 +95,8 @@ WoMicClient* WoMicClient::setSpeedOff(float speedOff) {
     return this;
 }
 
-void WoMicClient::start(WoMicClientCallback callback) {
-    int result = start();
+void WoMicClient::start(WoMicClientCallback callback, bool reconnect) {
+    int result = start(reconnect);
     if (callback != NULL) {
         callback(result);
     }
@@ -216,6 +234,9 @@ void WoMicClient::pingFailed(int reason) {
     clientSocket = INVALID_SOCKET;
     if (autoReconnect && status == CONNECTED) {
         reconnectAsync();
+        if (this->failCallback != NULL) {
+            this->failCallback(CLIENT_RECONNECT);
+        }
     }
     else if (status != STOPPING && status != FAILED) {
         failCode = reason;
@@ -255,7 +276,7 @@ int WoMicClient::reconnect() {
         else {
             cout << "Reconnect waiting for " << sleepMiliseconds / 1000 << " sec" << endl;
             Sleep(sleepMiliseconds);
-            sleepMiliseconds = min(sleepMiliseconds * 5, 10000); // sleep for 1, 5, 10 seconds
+            sleepMiliseconds = min(sleepMiliseconds * 5, 5000); // sleep for 1, 5, 5, 5 ... seconds
         }
     }
     return CLIENT_E_RECONNECTSTATE;

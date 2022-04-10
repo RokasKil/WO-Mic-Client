@@ -40,8 +40,10 @@ public:
     WoMicClient();
     ~WoMicClient();
     int start();
+    int start(bool reconnect);
     int stop();
     int startAsync(WoMicClientCallback callback);
+    int startAsync(WoMicClientCallback callback, bool reconnect);
     int stopAsync(WoMicClientCallback callback);
     ClientStatus getStatus();
 
@@ -84,7 +86,7 @@ public:
 
     void setClearBufferFlag();
 private:
-    void start(WoMicClientCallback callback);
+    void start(WoMicClientCallback callback, bool reconnect);
     void stop(WoMicClientCallback callback);
 
     int connect();

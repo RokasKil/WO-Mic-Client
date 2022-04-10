@@ -99,6 +99,9 @@ STRINGTABLE DISCARDABLE
     IDS_VALIDATE_SPEEDOFF, L"Speed off value must be 0 or higher"
 
     IDS_SAVE_FAILED, L"Failed to save settings"
+
+    IDS_CONNECTONSTARTUP, L"Connect on startup"
+    IDS_NOTIFYAUTORECONNECT, L"Notify disconnects when reconnect is on"
 }
 
 IDI_APP ICON DISCARDABLE "../../img/icon.ico"
